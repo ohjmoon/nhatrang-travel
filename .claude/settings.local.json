@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude mcp add:*)",
+      "Bash(claude mcp list:*)",
+      "Bash(npm search:*)",
+      "Bash(winget search:*)",
+      "Bash(npx create-next-app@14:*)",
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(curl:*)",
+      "Bash(node screenshot.js:*)",
+      "Bash(node:*)",
+      "Bash(dir /s /b \"C:\\\\Users\\\\infoin\\\\*.docx\")",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(npx ts-node:*)",
+      "Bash(npx tsx:*)",
+      "Bash(npm run dev:*)",
+      "Bash(cat:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(npm run build:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
