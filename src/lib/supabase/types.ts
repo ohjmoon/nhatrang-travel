@@ -7,97 +7,113 @@ export type ShoppingCategory = 'mart' | 'mall' | 'market' | 'night-market';
 
 export type PlaceCategory = RestaurantCategory | AttractionCategory | ActivityCategory | ShoppingCategory;
 
-export interface Database {
-  public: {
-    Tables: {
-      places: {
-        Row: {
-          id: string;
-          created_at: string;
-          updated_at: string;
-          type: PlaceType;
-          category: string;
-          slug: string;
-          name: string;
-          name_ko: string;
-          description: string | null;
-          address: string | null;
-          location: string | null;
-          hours: string | null;
-          price: string | null;
-          price_min: number | null;
-          price_max: number | null;
-          duration: string | null;
-          tips: string | null;
-          features: string[] | null;
-          recommended_items: string[] | null;
-          coordinates: { lat: number; lng: number } | null;
-          thumbnail: string | null;
-          is_published: boolean;
-          sort_order: number;
-        };
-        Insert: Omit<Database['public']['Tables']['places']['Row'], 'id' | 'created_at' | 'updated_at'> & {
-          id?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['places']['Insert']>;
-      };
-      place_images: {
-        Row: {
-          id: string;
-          created_at: string;
-          place_id: string;
-          url: string;
-          alt: string | null;
-          sort_order: number;
-          is_thumbnail: boolean;
-        };
-        Insert: Omit<Database['public']['Tables']['place_images']['Row'], 'id' | 'created_at'> & {
-          id?: string;
-          created_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['place_images']['Insert']>;
-      };
-      categories: {
-        Row: {
-          id: string;
-          created_at: string;
-          type: PlaceType;
-          slug: string;
-          name: string;
-          name_ko: string;
-          icon: string;
-          sort_order: number;
-        };
-        Insert: Omit<Database['public']['Tables']['categories']['Row'], 'id' | 'created_at'> & {
-          id?: string;
-          created_at?: string;
-        };
-        Update: Partial<Database['public']['Tables']['categories']['Insert']>;
-      };
-    };
-    Views: {};
-    Functions: {};
-    Enums: {
-      place_type: PlaceType;
-    };
-  };
+// Row types
+export interface Place {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  type: PlaceType;
+  category: string;
+  slug: string;
+  name: string;
+  name_ko: string;
+  description: string | null;
+  address: string | null;
+  location: string | null;
+  hours: string | null;
+  price: string | null;
+  price_min: number | null;
+  price_max: number | null;
+  duration: string | null;
+  tips: string | null;
+  features: string[] | null;
+  recommended_items: string[] | null;
+  coordinates: { lat: number; lng: number } | null;
+  thumbnail: string | null;
+  is_published: boolean;
+  sort_order: number;
 }
 
-// Convenient type aliases
-export type Place = Database['public']['Tables']['places']['Row'];
-export type PlaceInsert = Database['public']['Tables']['places']['Insert'];
-export type PlaceUpdate = Database['public']['Tables']['places']['Update'];
+export interface PlaceImage {
+  id: string;
+  created_at: string;
+  place_id: string;
+  url: string;
+  alt: string | null;
+  sort_order: number;
+  is_thumbnail: boolean;
+}
 
-export type PlaceImage = Database['public']['Tables']['place_images']['Row'];
-export type PlaceImageInsert = Database['public']['Tables']['place_images']['Insert'];
+export interface Category {
+  id: string;
+  created_at: string;
+  type: PlaceType;
+  slug: string;
+  name: string;
+  name_ko: string;
+  icon: string;
+  sort_order: number;
+}
 
-export type Category = Database['public']['Tables']['categories']['Row'];
+// Insert types
+export type PlaceInsert = Omit<Place, 'id' | 'created_at' | 'updated_at'> & {
+  id?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type PlaceImageInsert = Omit<PlaceImage, 'id' | 'created_at'> & {
+  id?: string;
+  created_at?: string;
+};
+
+// Update types
+export type PlaceUpdate = Partial<PlaceInsert>;
 
 // Extended types with relations
 export interface PlaceWithImages extends Place {
   images: PlaceImage[];
+}
+
+export interface Database {
+  public: {
+    Tables: {
+      places: {
+        Row: Place;
+        Insert: PlaceInsert;
+        Update: PlaceUpdate;
+        Relationships: [];
+      };
+      place_images: {
+        Row: PlaceImage;
+        Insert: PlaceImageInsert;
+        Update: Partial<PlaceImageInsert>;
+        Relationships: [
+          {
+            foreignKeyName: 'place_images_place_id_fkey';
+            columns: ['place_id'];
+            referencedRelation: 'places';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      categories: {
+        Row: Category;
+        Insert: Omit<Category, 'id' | 'created_at'> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<Omit<Category, 'id' | 'created_at'>>;
+        Relationships: [];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: {
+      place_type: PlaceType;
+    };
+    CompositeTypes: Record<string, never>;
+  };
 }
 
 // Category definitions for UI

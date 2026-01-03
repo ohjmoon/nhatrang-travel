@@ -87,17 +87,20 @@ export default function PlaceEditPage() {
 
   async function fetchPlace() {
     try {
-      const { data: place, error } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
         .from('places')
         .select('*')
         .eq('id', params.id)
         .single();
 
+      const place = data as Place | null;
+
       if (error) throw error;
 
       if (place) {
         setFormData({
-          type: place.type as PlaceType,
+          type: place.type,
           category: place.category,
           slug: place.slug,
           name: place.name,
@@ -117,14 +120,15 @@ export default function PlaceEditPage() {
         });
 
         // Fetch images
-        const { data: imageData } = await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: imageData } = await (supabase as any)
           .from('place_images')
           .select('*')
           .eq('place_id', place.id)
           .order('sort_order');
 
         if (imageData) {
-          setImages(imageData);
+          setImages(imageData as PlaceImage[]);
         }
       }
     } catch (err) {
@@ -149,7 +153,8 @@ export default function PlaceEditPage() {
       };
 
       if (isNew) {
-        const { data, error } = await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data, error } = await (supabase as any)
           .from('places')
           .insert(placeData)
           .select()
@@ -158,10 +163,12 @@ export default function PlaceEditPage() {
         if (error) throw error;
 
         // Save images with new place id
-        if (images.length > 0 && data) {
-          await supabase.from('place_images').insert(
+        const newPlace = data as Place | null;
+        if (images.length > 0 && newPlace) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase as any).from('place_images').insert(
             images.map((img, idx) => ({
-              place_id: data.id,
+              place_id: newPlace.id,
               url: img.url,
               alt: img.alt,
               sort_order: idx,
@@ -172,7 +179,8 @@ export default function PlaceEditPage() {
 
         router.push('/admin/places');
       } else {
-        const { error } = await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase as any)
           .from('places')
           .update(placeData)
           .eq('id', params.id);
@@ -180,9 +188,11 @@ export default function PlaceEditPage() {
         if (error) throw error;
 
         // Update images
-        await supabase.from('place_images').delete().eq('place_id', params.id);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any).from('place_images').delete().eq('place_id', params.id);
         if (images.length > 0) {
-          await supabase.from('place_images').insert(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase as any).from('place_images').insert(
             images.map((img, idx) => ({
               place_id: params.id as string,
               url: img.url,

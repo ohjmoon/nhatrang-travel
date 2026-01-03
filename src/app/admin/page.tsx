@@ -46,11 +46,14 @@ export default function AdminDashboard() {
           return;
         }
 
-        const { data: places, error } = await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data, error } = await (supabase as any)
           .from('places')
           .select('id, type, thumbnail, is_published');
 
         if (error) throw error;
+
+        const places = data as { id: string; type: PlaceType; thumbnail: string | null; is_published: boolean }[] | null;
 
         const byType: Record<PlaceType, number> = {
           restaurant: 0,
@@ -63,7 +66,7 @@ export default function AdminDashboard() {
         let unpublished = 0;
 
         places?.forEach((place) => {
-          byType[place.type as PlaceType]++;
+          byType[place.type]++;
           if (!place.thumbnail) withoutImages++;
           if (!place.is_published) unpublished++;
         });

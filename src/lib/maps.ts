@@ -102,7 +102,6 @@ export const locationCoordinates: Record<string, Coordinates> = {
   'pottery-class': { lat: 12.2512, lng: 109.1834 },
 
   // Shopping
-  'dam-market': { lat: 12.2489, lng: 109.1856 },
   'xom-moi-market': { lat: 12.2534, lng: 109.1789 },
   'night-market': { lat: 12.2378, lng: 109.1945 },
   'cho-dam-seafood': { lat: 12.2489, lng: 109.1856 },

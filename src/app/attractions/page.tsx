@@ -245,15 +245,19 @@ function AttractionCard({
 
         {/* Name & Rating on Image */}
         <div className="absolute bottom-3 left-3 right-3">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="flex items-center gap-1 bg-palm-500 text-white px-2 py-0.5 rounded text-sm">
-              <Star className="w-3.5 h-3.5 fill-current" />
-              <span className="font-medium">{attraction.rating}</span>
+          {attraction.rating && (
+            <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-1 bg-palm-500 text-white px-2 py-0.5 rounded text-sm">
+                <Star className="w-3.5 h-3.5 fill-current" />
+                <span className="font-medium">{attraction.rating}</span>
+              </div>
+              {attraction.reviewCount && (
+                <span className="text-white/80 text-sm">
+                  ({attraction.reviewCount.toLocaleString()})
+                </span>
+              )}
             </div>
-            <span className="text-white/80 text-sm">
-              ({attraction.reviewCount.toLocaleString()})
-            </span>
-          </div>
+          )}
           <h3 className="font-bold text-xl text-white">
             {attraction.nameKo}
           </h3>
@@ -279,18 +283,20 @@ function AttractionCard({
         </div>
 
         {/* Highlights */}
-        <div className="mb-3">
-          <div className="flex flex-wrap gap-1.5">
-            {attraction.highlights.map((highlight, index) => (
-              <span
-                key={index}
-                className="px-2 py-1 bg-palm-50 text-palm-700 text-xs rounded-md"
-              >
-                {highlight}
-              </span>
-            ))}
+        {attraction.highlights && attraction.highlights.length > 0 && (
+          <div className="mb-3">
+            <div className="flex flex-wrap gap-1.5">
+              {attraction.highlights.map((highlight, index) => (
+                <span
+                  key={index}
+                  className="px-2 py-1 bg-palm-50 text-palm-700 text-xs rounded-md"
+                >
+                  {highlight}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Tips */}
         {attraction.tips && (

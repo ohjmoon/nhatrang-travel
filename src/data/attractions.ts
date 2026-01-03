@@ -10,6 +10,9 @@ export interface Attraction {
   hours?: string;
   price?: string;
   duration?: string;
+  rating?: number;
+  reviewCount?: number;
+  highlights?: string[];
 }
 
 export const categories = [
@@ -329,13 +332,29 @@ export const attractions: Attraction[] = [
   },
 ];
 
-export function filterAttractions(
-  category?: string
-): Attraction[] {
-  let filtered = attractions;
+interface FilterOptions {
+  category?: string;
+  search?: string;
+}
 
-  if (category && category !== 'all') {
-    filtered = filtered.filter((a) => a.category === category);
+export function filterAttractions(
+  items: Attraction[],
+  filters: FilterOptions
+): Attraction[] {
+  let filtered = items;
+
+  if (filters.category && filters.category !== 'all') {
+    filtered = filtered.filter((a) => a.category === filters.category);
+  }
+
+  if (filters.search) {
+    const searchLower = filters.search.toLowerCase();
+    filtered = filtered.filter(
+      (a) =>
+        a.name.toLowerCase().includes(searchLower) ||
+        a.nameKo.includes(filters.search!) ||
+        a.description.includes(filters.search!)
+    );
   }
 
   return filtered;

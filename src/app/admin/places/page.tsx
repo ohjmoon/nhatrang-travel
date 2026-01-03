@@ -73,7 +73,8 @@ function PlacesContent() {
 
   async function fetchPlaces() {
     try {
-      let query = supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query = (supabase as any)
         .from('places')
         .select('*')
         .order('type')
@@ -90,7 +91,7 @@ function PlacesContent() {
       const { data, error } = await query;
 
       if (error) throw error;
-      setPlaces(data || []);
+      setPlaces((data as Place[]) || []);
     } catch (err) {
       console.error('Failed to fetch places:', err);
     } finally {
@@ -100,7 +101,8 @@ function PlacesContent() {
 
   async function togglePublish(id: string, currentState: boolean) {
     try {
-      const { error } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
         .from('places')
         .update({ is_published: !currentState })
         .eq('id', id);
@@ -114,7 +116,8 @@ function PlacesContent() {
 
   async function deletePlace(id: string) {
     try {
-      const { error } = await supabase.from('places').delete().eq('id', id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any).from('places').delete().eq('id', id);
 
       if (error) throw error;
       setDeleteId(null);

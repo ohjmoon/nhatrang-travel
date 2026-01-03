@@ -52,7 +52,7 @@ export interface AvailableItem {
   name: string;
   nameKo: string;
   image: string;
-  rating: number;
+  rating?: number;
   duration?: string;
   hours?: string;
   price?: string;
@@ -70,7 +70,7 @@ export function getAllAvailableItems(): AvailableItem[] {
       nameKo: item.nameKo,
       image: item.image,
       rating: item.rating,
-      price: item.price,
+      price: `${item.priceMin.toLocaleString()}~${item.priceMax.toLocaleString()}원`,
     });
   });
 
