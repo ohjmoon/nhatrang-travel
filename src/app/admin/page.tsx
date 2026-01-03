@@ -40,10 +40,7 @@ export default function AdminDashboard() {
     async function fetchStats() {
       try {
         // Check if Supabase is configured
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        console.log('Supabase URL:', supabaseUrl);
-
-        if (!supabaseUrl) {
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
           setError('Supabase가 설정되지 않았습니다. .env.local 파일을 확인해주세요.');
           setLoading(false);
           return;

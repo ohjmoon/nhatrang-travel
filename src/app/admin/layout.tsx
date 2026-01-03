@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -12,7 +12,6 @@ import {
   Waves,
   ShoppingBag,
   Hotel,
-  Settings,
   Menu,
   X,
   ChevronLeft,
@@ -20,14 +19,13 @@ import {
 import { Button } from '@/components/ui/button';
 
 const navigation = [
-  { name: '대시보드', href: '/admin', icon: LayoutDashboard },
-  { name: '전체 장소', href: '/admin/places', icon: MapPin },
+  { name: '대시보드', href: '/admin', icon: LayoutDashboard, exact: true },
+  { name: '전체 장소', href: '/admin/places', icon: MapPin, exact: true },
   { name: '숙소', href: '/admin/accommodations', icon: Hotel },
   { name: '맛집', href: '/admin/places?type=restaurant', icon: UtensilsCrossed },
   { name: '볼거리', href: '/admin/places?type=attraction', icon: Compass },
   { name: '액티비티', href: '/admin/places?type=activity', icon: Waves },
   { name: '쇼핑', href: '/admin/places?type=shopping', icon: ShoppingBag },
-  { name: '설정', href: '/admin/settings', icon: Settings },
 ];
 
 export default function AdminLayout({
@@ -37,6 +35,8 @@ export default function AdminLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentType = searchParams.get('type');
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -72,10 +72,21 @@ export default function AdminLayout({
 
         <nav className="p-4 space-y-1">
           {navigation.map((item) => {
-            const isActive =
-              item.href === '/admin'
-                ? pathname === '/admin'
-                : pathname.startsWith(item.href);
+            // Parse the href to check for query params
+            const [itemPath, itemQuery] = item.href.split('?');
+            const itemType = itemQuery?.split('=')[1];
+
+            let isActive = false;
+            if (item.exact) {
+              // Exact match for dashboard and "전체 장소"
+              isActive = pathname === itemPath && !currentType;
+            } else if (itemType) {
+              // Match by type query param
+              isActive = pathname === itemPath && currentType === itemType;
+            } else {
+              // Default: starts with path
+              isActive = pathname.startsWith(itemPath);
+            }
             return (
               <Link
                 key={item.name}
