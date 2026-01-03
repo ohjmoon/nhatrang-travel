@@ -1,32 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
-  LayoutDashboard,
-  MapPin,
-  UtensilsCrossed,
-  Compass,
-  Waves,
-  ShoppingBag,
-  Hotel,
   Menu,
   X,
   ChevronLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import AdminNav from '@/components/admin/AdminNav';
 
-const navigation = [
-  { name: '대시보드', href: '/admin', icon: LayoutDashboard, exact: true },
-  { name: '전체 장소', href: '/admin/places', icon: MapPin, exact: true },
-  { name: '숙소', href: '/admin/accommodations', icon: Hotel },
-  { name: '맛집', href: '/admin/places?type=restaurant', icon: UtensilsCrossed },
-  { name: '볼거리', href: '/admin/places?type=attraction', icon: Compass },
-  { name: '액티비티', href: '/admin/places?type=activity', icon: Waves },
-  { name: '쇼핑', href: '/admin/places?type=shopping', icon: ShoppingBag },
-];
+function NavSkeleton() {
+  return (
+    <nav className="p-4 space-y-1">
+      {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+        <div
+          key={i}
+          className="flex items-center gap-3 px-3 py-2 rounded-lg"
+        >
+          <div className="h-5 w-5 bg-gray-200 rounded animate-pulse" />
+          <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+        </div>
+      ))}
+    </nav>
+  );
+}
 
 export default function AdminLayout({
   children,
@@ -34,9 +33,6 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const currentType = searchParams.get('type');
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -70,41 +66,9 @@ export default function AdminLayout({
           </Button>
         </div>
 
-        <nav className="p-4 space-y-1">
-          {navigation.map((item) => {
-            // Parse the href to check for query params
-            const [itemPath, itemQuery] = item.href.split('?');
-            const itemType = itemQuery?.split('=')[1];
-
-            let isActive = false;
-            if (item.exact) {
-              // Exact match for dashboard and "전체 장소"
-              isActive = pathname === itemPath && !currentType;
-            } else if (itemType) {
-              // Match by type query param
-              isActive = pathname === itemPath && currentType === itemType;
-            } else {
-              // Default: starts with path
-              isActive = pathname.startsWith(itemPath);
-            }
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-gray-700 hover:bg-gray-100'
-                )}
-                onClick={() => setSidebarOpen(false)}
-              >
-                <item.icon className="h-5 w-5" />
-                {item.name}
-              </Link>
-            );
-          })}
-        </nav>
+        <Suspense fallback={<NavSkeleton />}>
+          <AdminNav onItemClick={() => setSidebarOpen(false)} />
+        </Suspense>
 
         <div className="absolute bottom-4 left-4 right-4">
           <Link href="/">
