@@ -3,11 +3,18 @@ export interface Activity {
   name: string;
   nameKo: string;
   category: string;
+  difficulty: 'easy' | 'medium' | 'hard';
   image: string;
   description: string;
   price: string;
   priceValue?: { min: number; max: number }; // in KRW (만원)
   duration: string;
+  groupSize: string;
+  rating: number;
+  reviewCount: number;
+  included: string[];
+  highlights: string[];
+  bestTime?: string;
   tips?: string;
 }
 
@@ -19,6 +26,13 @@ export const categories = [
   { id: 'party', name: '파티/나이트', icon: '🎉', count: 4 },
 ];
 
+export const difficultyLevels = [
+  { id: 'all', name: '전체', icon: '🎯' },
+  { id: 'easy', name: '쉬움', icon: '🟢' },
+  { id: 'medium', name: '보통', icon: '🟡' },
+  { id: 'hard', name: '어려움', icon: '🔴' },
+];
+
 export const activities: Activity[] = [
   // 🌊 수상 액티비티 (8종)
   {
@@ -26,85 +40,140 @@ export const activities: Activity[] = [
     name: 'Island Hopping Tour',
     nameKo: '호핑투어',
     category: 'water',
+    difficulty: 'easy',
     image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800',
     description: '3섬 투어, 선상파티, 점심 포함',
     price: '3~6만원',
     priceValue: { min: 3, max: 6 },
     duration: '6-7시간',
+    groupSize: '10-30명',
+    rating: 4.7,
+    reviewCount: 2840,
+    included: ['보트', '점심', '스노클링 장비', '가이드'],
+    highlights: ['혼문섬', '선상파티', '스노클링'],
+    bestTime: '4-8월',
+    tips: '멀미약 준비 권장',
   },
   {
     id: 'snorkeling',
     name: 'Snorkeling',
     nameKo: '스노클링',
     category: 'water',
+    difficulty: 'easy',
     image: 'https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?w=800',
     description: '혼문섬, 담베이 등 투명한 바다',
     price: '3~5만원',
     priceValue: { min: 3, max: 5 },
     duration: '반나절',
+    groupSize: '5-15명',
+    rating: 4.5,
+    reviewCount: 1520,
+    included: ['장비 대여', '가이드', '보트'],
+    highlights: ['투명한 바다', '열대어 관찰'],
+    bestTime: '3-9월',
   },
   {
     id: 'scuba-diving',
     name: 'Scuba Diving Experience',
     nameKo: '체험 다이빙 (스쿠버)',
     category: 'water',
+    difficulty: 'medium',
     image: 'https://images.unsplash.com/photo-1559494007-9f5847c49d94?w=800',
     description: '자격증 없이 체험 가능',
     price: '5~8만원',
     priceValue: { min: 5, max: 8 },
     duration: '반나절',
+    groupSize: '2-6명',
+    rating: 4.8,
+    reviewCount: 980,
+    included: ['장비 일체', '강사', '사진'],
+    highlights: ['수중 사진', '산호초 감상'],
+    bestTime: '3-9월',
+    tips: '수영 못해도 가능',
   },
   {
     id: 'sea-walking',
     name: 'Sea Walking',
     nameKo: '씨워킹 (해저산책)',
     category: 'water',
+    difficulty: 'easy',
     image: 'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=800',
     description: '헬멧 쓰고 바닥 걷기',
     price: '4~6만원',
     priceValue: { min: 4, max: 6 },
     duration: '15-20분',
+    groupSize: '4-8명',
+    rating: 4.6,
+    reviewCount: 750,
+    included: ['헬멧', '사진/영상', '가이드'],
+    highlights: ['물고기 먹이주기', '수중 촬영'],
+    tips: '수영 못해도 OK',
   },
   {
     id: 'parasailing',
     name: 'Parasailing',
     nameKo: '패러세일링',
     category: 'water',
+    difficulty: 'easy',
     image: 'https://images.unsplash.com/photo-1541480601022-2308c0f02487?w=800',
     description: '보트 연결 낙하산 비행',
     price: '현장 별도',
     duration: '10-15분',
+    groupSize: '1-2명',
+    rating: 4.4,
+    reviewCount: 420,
+    included: ['장비', '안전교육'],
+    highlights: ['하늘에서 바다 감상', '스릴'],
   },
   {
     id: 'jet-ski',
     name: 'Jet Ski',
     nameKo: '제트스키',
     category: 'water',
+    difficulty: 'medium',
     image: 'https://images.unsplash.com/photo-1626607556444-f0c39a3bab09?w=800',
     description: '스피드 수상 오토바이',
     price: '현장 별도',
     duration: '15-30분',
+    groupSize: '1-2명',
+    rating: 4.5,
+    reviewCount: 380,
+    included: ['장비', '안전조끼'],
+    highlights: ['스피드', '자유로운 운전'],
   },
   {
     id: 'banana-boat',
     name: 'Banana Boat',
     nameKo: '바나나보트',
     category: 'water',
+    difficulty: 'easy',
     image: 'https://images.unsplash.com/photo-1530866495561-507c9faab2ed?w=800',
     description: '튜브 보트 액티비티',
     price: '현장 별도',
     duration: '15분',
+    groupSize: '4-8명',
+    rating: 4.3,
+    reviewCount: 290,
+    included: ['안전조끼'],
+    highlights: ['단체 활동', '스릴'],
   },
   {
     id: 'emperor-cruise',
     name: 'Emperor Cruise',
     nameKo: '황제 크루즈',
     category: 'water',
+    difficulty: 'easy',
     image: 'https://images.unsplash.com/photo-1544551763-8dd44758c2dd?w=800',
     description: '럭셔리 선상 디너, 야경',
     price: '5~10만원',
     priceValue: { min: 5, max: 10 },
     duration: '2-3시간',
+    groupSize: '20-50명',
+    rating: 4.6,
+    reviewCount: 560,
+    included: ['디너', '음료', '공연'],
+    highlights: ['야경', '럭셔리 경험', '선상 파티'],
+    bestTime: '연중',
   },
 
   // 🧖 스파/힐링 (4종)
@@ -113,11 +182,17 @@ export const activities: Activity[] = [
     name: 'I-Resort Mud Spa',
     nameKo: '아이리조트 머드스파',
     category: 'spa',
+    difficulty: 'easy',
     image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800',
     description: '대형 머드배스 + 온천 + 워터파크',
     price: '2~5만원',
     priceValue: { min: 2, max: 5 },
     duration: '반나절',
+    groupSize: '제한없음',
+    rating: 4.7,
+    reviewCount: 3200,
+    included: ['머드배스', '온천', '수영장'],
+    highlights: ['시간 무제한', '워터파크', '사진 명소'],
     tips: '가장 인기! 시간 무제한',
   },
   {
@@ -125,11 +200,17 @@ export const activities: Activity[] = [
     name: 'Galina Mud Spa',
     nameKo: '갈리나 머드스파',
     category: 'spa',
+    difficulty: 'easy',
     image: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=800',
     description: '시내 중심, 접근성 좋음',
     price: '2~4만원',
     priceValue: { min: 2, max: 4 },
     duration: '2-3시간',
+    groupSize: '제한없음',
+    rating: 4.4,
+    reviewCount: 1850,
+    included: ['머드배스', '온천'],
+    highlights: ['시내 위치', '접근성'],
     tips: '시내 유일 머드스파',
   },
   {
@@ -137,21 +218,33 @@ export const activities: Activity[] = [
     name: 'Hon Tam Island Mud Spa',
     nameKo: '혼땀섬 머드온천',
     category: 'spa',
+    difficulty: 'easy',
     image: 'https://images.unsplash.com/photo-1596178060810-72f53ce9a65c?w=800',
     description: '섬에서 머드배스 체험',
     price: '투어 포함',
     duration: '반나절',
+    groupSize: '10-30명',
+    rating: 4.5,
+    reviewCount: 920,
+    included: ['보트', '머드배스', '점심'],
+    highlights: ['섬 투어', '머드 체험'],
   },
   {
     id: 'amiana-spa',
     name: 'Amiana Resort Spa',
     nameKo: '아미아나 리조트 스파',
     category: 'spa',
+    difficulty: 'easy',
     image: 'https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?w=800',
     description: '프라이빗 머드 스파',
     price: '3~6만원',
     priceValue: { min: 3, max: 6 },
     duration: '2-3시간',
+    groupSize: '2-4명',
+    rating: 4.8,
+    reviewCount: 680,
+    included: ['프라이빗 룸', '머드', '음료'],
+    highlights: ['프라이빗', '럭셔리'],
   },
 
   // 🚗 근교 투어 (5종)
@@ -160,55 +253,90 @@ export const activities: Activity[] = [
     name: 'Da Lat Day Tour',
     nameKo: '달랏 데이투어',
     category: 'tour',
+    difficulty: 'medium',
     image: 'https://images.unsplash.com/photo-1600359756098-8bc52195bbf4?w=800',
     description: '꽃의 도시, 폭포, 카페',
     price: '4~7만원',
     priceValue: { min: 4, max: 7 },
     duration: '당일 (10-12시간)',
+    groupSize: '8-15명',
+    rating: 4.6,
+    reviewCount: 1420,
+    included: ['차량', '가이드', '점심', '입장료'],
+    highlights: ['꽃 정원', '폭포', '케이블카'],
+    bestTime: '11-4월',
+    tips: '긴 이동시간 고려',
   },
   {
     id: 'phan-rang-desert',
     name: 'Phan Rang Desert Tour',
     nameKo: '판랑 사막투어',
     category: 'tour',
+    difficulty: 'medium',
     image: 'https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=800',
     description: '지프타고 일출/사막 체험',
     price: '3~5만원',
     priceValue: { min: 3, max: 5 },
     duration: '반나절~당일',
+    groupSize: '4-12명',
+    rating: 4.5,
+    reviewCount: 890,
+    included: ['지프', '가이드', '조식'],
+    highlights: ['일출', '사막 체험', '지프 투어'],
+    bestTime: '3-9월',
   },
   {
     id: 'mui-ne-tour',
     name: 'Mui Ne Tour',
     nameKo: '무이네 투어',
     category: 'tour',
+    difficulty: 'medium',
     image: 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800',
     description: '붉은/흰 사막, 요정의 샘',
     price: '5~8만원',
     priceValue: { min: 5, max: 8 },
     duration: '당일',
+    groupSize: '6-12명',
+    rating: 4.4,
+    reviewCount: 720,
+    included: ['차량', '가이드', '점심'],
+    highlights: ['레드샌듄', '화이트샌듄', '요정의 샘'],
+    bestTime: '11-4월',
   },
   {
     id: 'yang-bay-tour',
     name: 'Yang Bay Waterfall Tour',
     nameKo: '양베이 폭포투어',
     category: 'tour',
+    difficulty: 'easy',
     image: 'https://images.unsplash.com/photo-1494472155656-f34e81b17ddc?w=800',
     description: '폭포+온천+동물체험',
     price: '2~4만원',
     priceValue: { min: 2, max: 4 },
     duration: '반나절',
+    groupSize: '10-20명',
+    rating: 4.3,
+    reviewCount: 650,
+    included: ['입장료', '차량'],
+    highlights: ['폭포', '온천', '동물 체험'],
   },
   {
     id: 'ba-ho-trekking',
     name: 'Ba Ho Falls Trekking',
     nameKo: '바호 폭포 트레킹',
     category: 'tour',
+    difficulty: 'hard',
     image: 'https://images.unsplash.com/photo-1432405972618-c60b0225b8f9?w=800',
     description: '자연 트레킹, 수영',
     price: '2~3만원',
     priceValue: { min: 2, max: 3 },
     duration: '반나절',
+    groupSize: '4-10명',
+    rating: 4.6,
+    reviewCount: 480,
+    included: ['입장료', '가이드'],
+    highlights: ['자연 폭포', '수영', '트레킹'],
+    tips: '운동화 필수',
   },
 
   // 🎉 파티/나이트라이프 (4종)
@@ -217,50 +345,100 @@ export const activities: Activity[] = [
     name: 'Pirate Hopping Tour',
     nameKo: '해적 호핑투어',
     category: 'party',
+    difficulty: 'easy',
     image: 'https://images.unsplash.com/photo-1559825481-12a05cc00344?w=800',
     description: '선상파티 + MC진행 + 음료무제한',
     price: '5~7만원',
     priceValue: { min: 5, max: 7 },
     duration: '6-7시간',
+    groupSize: '30-50명',
+    rating: 4.7,
+    reviewCount: 1650,
+    included: ['음료 무제한', 'MC 진행', '점심'],
+    highlights: ['선상 파티', '게임', '스노클링'],
+    bestTime: '4-9월',
   },
   {
     id: 'yolo-hopping',
     name: 'YOLO Hopping Tour',
     nameKo: 'YOLO 호핑투어',
     category: 'party',
+    difficulty: 'easy',
     image: 'https://images.unsplash.com/photo-1530866495561-507c9faab2ed?w=800',
     description: '플로팅바 + 칵테일 + 선상공연',
     price: '4~6만원',
     priceValue: { min: 4, max: 6 },
     duration: '7시간',
+    groupSize: '30-60명',
+    rating: 4.6,
+    reviewCount: 1280,
+    included: ['칵테일', '점심', '공연'],
+    highlights: ['플로팅바', '칵테일', 'DJ'],
+    bestTime: '4-9월',
   },
   {
     id: 'sailing-club-party',
     name: 'Sailing Club Beach Party',
     nameKo: '세일링클럽 비치파티',
     category: 'party',
+    difficulty: 'easy',
     image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800',
     description: '해변가 주말 파티',
     price: '입장료 별도',
     duration: '저녁~새벽',
+    groupSize: '제한없음',
+    rating: 4.4,
+    reviewCount: 890,
+    included: [],
+    highlights: ['비치 파티', 'DJ', '라이브'],
+    bestTime: '금/토요일',
   },
   {
     id: 'skylight-rooftop',
     name: 'Skylight Rooftop',
     nameKo: '스카이라이트 루프탑',
     category: 'party',
+    difficulty: 'easy',
     image: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=800',
     description: '야경 칵테일바',
     price: '음료값',
     duration: '저녁',
+    groupSize: '제한없음',
+    rating: 4.5,
+    reviewCount: 720,
+    included: [],
+    highlights: ['야경', '칵테일', '분위기'],
   },
 ];
 
-export function filterActivities(category?: string): Activity[] {
-  let filtered = activities;
+interface FilterOptions {
+  category?: string;
+  difficulty?: string;
+  search?: string;
+}
 
-  if (category && category !== 'all') {
-    filtered = filtered.filter((a) => a.category === category);
+export function filterActivities(
+  items: Activity[],
+  filters: FilterOptions
+): Activity[] {
+  let filtered = items;
+
+  if (filters.category && filters.category !== 'all') {
+    filtered = filtered.filter((a) => a.category === filters.category);
+  }
+
+  if (filters.difficulty && filters.difficulty !== 'all') {
+    filtered = filtered.filter((a) => a.difficulty === filters.difficulty);
+  }
+
+  if (filters.search) {
+    const searchLower = filters.search.toLowerCase();
+    filtered = filtered.filter(
+      (a) =>
+        a.name.toLowerCase().includes(searchLower) ||
+        a.nameKo.includes(filters.search!) ||
+        a.description.includes(filters.search!)
+    );
   }
 
   return filtered;
