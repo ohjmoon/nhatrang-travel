@@ -20,7 +20,11 @@
       "Bash(cat:*)",
       "Bash(git remote set-url:*)",
       "Bash(npm run build:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: 나트랑 여행 플래너 전체 프로젝트 추가\n\n- Next.js 14 + TypeScript + Tailwind CSS 기반 구축\n- 숙소/맛집/볼거리/액티비티/쇼핑/일정 페이지 구현\n- 관리자 페이지 구현 \\(장소 관리, 숙소 관리\\)\n- Supabase 연동 스키마 및 타입 정의\n- 문서 기반 숙소 데이터 43개 등록 \\(깜란/시내/빈펄/혼총/닌반베이\\)\n- shadcn/ui 컴포넌트 사용\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(npm ls:*)"
     ]
   }
 }
