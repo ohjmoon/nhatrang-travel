@@ -19,7 +19,11 @@ import {
   Lightbulb,
   Calendar,
   Gauge,
+  ExternalLink,
+  Navigation,
+  MapPin,
 } from 'lucide-react';
+import { MapLinkIcon, GoogleLinksButton } from '@/components/google-links';
 import {
   activities,
   categories,
@@ -299,20 +303,26 @@ function ActivityCard({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
-        {/* Favorite Button */}
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            onToggleFavorite();
-          }}
-          className={`absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-            isFavorite
-              ? 'bg-ocean-500 text-white'
-              : 'bg-white/80 text-ocean-600 hover:bg-white'
-          }`}
-        >
-          <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
-        </button>
+        {/* Action Buttons */}
+        <div className="absolute top-3 right-3 flex items-center gap-2">
+          <MapLinkIcon
+            name={activity.name}
+            address="Nha Trang, Vietnam"
+          />
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              onToggleFavorite();
+            }}
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+              isFavorite
+                ? 'bg-ocean-500 text-white'
+                : 'bg-white/80 text-ocean-600 hover:bg-white'
+            }`}
+          >
+            <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+          </button>
+        </div>
 
         {/* Category Badge */}
         <div className="absolute top-3 left-3">
@@ -412,6 +422,15 @@ function ActivityCard({
             </div>
           )}
         </div>
+
+        {/* Google Links */}
+        <GoogleLinksButton
+          name={activity.name}
+          nameKo={activity.nameKo}
+          address="Nha Trang, Vietnam"
+          variant="compact"
+          className="mt-3"
+        />
       </CardContent>
     </Card>
   );

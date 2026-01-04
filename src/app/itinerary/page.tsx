@@ -19,6 +19,7 @@ import {
   Download,
   Share2,
   CalendarDays,
+  List,
   Sunrise,
   Sun,
   Sunset,
@@ -28,7 +29,11 @@ import {
   Bus,
   Navigation,
   ArrowDown,
+  Map,
 } from 'lucide-react';
+import { GoogleMapsProvider, ItineraryMap } from '@/components/google-maps';
+import { SaveItineraryModal } from '@/components/itinerary';
+import { useSaveItinerary } from '@/lib/itinerary';
 import {
   type Itinerary,
   type ItineraryDay,
@@ -123,7 +128,29 @@ export default function ItineraryPage() {
     setShowAddModal(true);
   };
 
+  // State for map visibility
+  const [showMap, setShowMap] = useState(true);
+
+  // State for save modal
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const { saveItinerary, loading: saveLoading } = useSaveItinerary();
+
+  const handleSaveItinerary = async (
+    password: string,
+    description: string
+  ): Promise<boolean> => {
+    if (!itinerary) return false;
+
+    try {
+      const result = await saveItinerary(itinerary, password, description);
+      return !!result;
+    } catch {
+      return false;
+    }
+  };
+
   return (
+    <GoogleMapsProvider>
     <div className="min-h-screen bg-gradient-to-b from-ocean-50 via-white to-palm-50">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-ocean-100">
@@ -242,15 +269,52 @@ export default function ItineraryPage() {
                 <Plus className="w-4 h-4" />
                 새 일정
               </Button>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Share2 className="w-4 h-4" />
-                공유
+              <Link href="/itineraries">
+                <Button variant="outline" size="sm" className="gap-2">
+                  <List className="w-4 h-4" />
+                  저장된 일정
+                </Button>
+              </Link>
+              <Button
+                variant={showMap ? "ocean" : "outline"}
+                size="sm"
+                className="gap-2"
+                onClick={() => setShowMap(!showMap)}
+              >
+                <Map className="w-4 h-4" />
+                지도 {showMap ? '숨기기' : '보기'}
               </Button>
-              <Button variant="outline" size="sm" className="gap-2">
+              <Button
+                variant="ocean"
+                size="sm"
+                className="gap-2"
+                onClick={() => setShowSaveModal(true)}
+              >
                 <Download className="w-4 h-4" />
-                저장
+                저장하기
               </Button>
             </div>
+
+            {/* Map View */}
+            {showMap && itinerary.days[activeDayIndex] && (
+              <Card className="mb-6">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-ocean-800 flex items-center gap-2">
+                      <MapPin className="w-4 h-4" />
+                      Day {itinerary.days[activeDayIndex].dayNumber} 지도
+                    </h3>
+                    <span className="text-sm text-ocean-600">
+                      {itinerary.days[activeDayIndex].items.length}개 장소
+                    </span>
+                  </div>
+                  <ItineraryMap
+                    items={itinerary.days[activeDayIndex].items}
+                    className="h-[350px]"
+                  />
+                </CardContent>
+              </Card>
+            )}
 
             {/* Day Navigation */}
             <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
@@ -313,6 +377,15 @@ export default function ItineraryPage() {
         />
       )}
 
+      {/* Save Itinerary Modal */}
+      {showSaveModal && itinerary && (
+        <SaveItineraryModal
+          onClose={() => setShowSaveModal(false)}
+          onSave={handleSaveItinerary}
+          title={itinerary.title}
+        />
+      )}
+
       {/* Footer */}
       <footer className="bg-ocean-900 text-white py-8 mt-12">
         <div className="container mx-auto px-4 text-center text-ocean-400 text-sm">
@@ -320,6 +393,7 @@ export default function ItineraryPage() {
         </div>
       </footer>
     </div>
+    </GoogleMapsProvider>
   );
 }
 

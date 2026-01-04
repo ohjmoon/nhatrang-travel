@@ -19,7 +19,10 @@ import {
   Lightbulb,
   BadgePercent,
   CreditCard,
+  ExternalLink,
+  Navigation,
 } from 'lucide-react';
+import { MapLinkIcon, GoogleLinksButton } from '@/components/google-links';
 import {
   shoppingPlaces,
   categories,
@@ -263,20 +266,26 @@ function ShoppingCard({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
 
-        {/* Favorite Button */}
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            onToggleFavorite();
-          }}
-          className={`absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-            isFavorite
-              ? 'bg-sunset-500 text-white'
-              : 'bg-white/80 text-sunset-600 hover:bg-white'
-          }`}
-        >
-          <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
-        </button>
+        {/* Action Buttons */}
+        <div className="absolute top-3 right-3 flex items-center gap-2">
+          <MapLinkIcon
+            name={place.name}
+            address={place.address}
+          />
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              onToggleFavorite();
+            }}
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+              isFavorite
+                ? 'bg-sunset-500 text-white'
+                : 'bg-white/80 text-sunset-600 hover:bg-white'
+            }`}
+          >
+            <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+          </button>
+        </div>
 
         {/* Category Badge */}
         <div className="absolute top-3 left-3">
@@ -373,11 +382,19 @@ function ShoppingCard({
 
         {/* Tips */}
         {place.tips && (
-          <div className="flex items-start gap-2 p-2 bg-ocean-50 rounded-lg">
+          <div className="flex items-start gap-2 p-2 bg-ocean-50 rounded-lg mb-3">
             <Lightbulb className="w-4 h-4 text-ocean-500 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-ocean-700 line-clamp-2">{place.tips}</p>
           </div>
         )}
+
+        {/* Google Links */}
+        <GoogleLinksButton
+          name={place.name}
+          nameKo={place.nameKo}
+          address={place.address}
+          variant="compact"
+        />
       </CardContent>
     </Card>
   );

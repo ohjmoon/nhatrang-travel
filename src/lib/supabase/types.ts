@@ -1,3 +1,12 @@
+// Supabase JSON type
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
 export type PlaceType = 'restaurant' | 'attraction' | 'activity' | 'shopping';
 
 export type RestaurantCategory = 'korean' | 'vietnamese' | 'seafood' | 'cafe' | 'bar' | 'western' | 'japanese' | 'etc';
@@ -75,6 +84,70 @@ export interface PlaceWithImages extends Place {
   images: PlaceImage[];
 }
 
+// Itinerary types for application use
+export interface ItineraryDayData {
+  id: string;
+  date: string;
+  dayNumber: number;
+  items: ItineraryItemData[];
+}
+
+export interface ItineraryItemData {
+  id: string;
+  itemId: string;
+  category: string;
+  name: string;
+  nameKo: string;
+  image: string;
+  time: string;
+  duration?: string;
+  notes?: string;
+}
+
+// Database row type (days stored as JSONB)
+export interface ItineraryRow {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  title: string;
+  description: string | null;
+  start_date: string;
+  end_date: string;
+  days: Json;
+  total_places: number;
+  thumbnail: string | null;
+}
+
+// Application type with typed days
+export interface Itinerary {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  title: string;
+  description: string | null;
+  start_date: string;
+  end_date: string;
+  days: ItineraryDayData[];
+  total_places: number;
+  thumbnail: string | null;
+}
+
+export type ItineraryInsert = {
+  id?: string;
+  created_at?: string;
+  updated_at?: string;
+  title: string;
+  description?: string | null;
+  start_date: string;
+  end_date: string;
+  days: Json;
+  total_places: number;
+  thumbnail?: string | null;
+};
+
+export type ItineraryUpdate = Partial<ItineraryInsert>;
+
+// Database interface (must be after all table types are defined)
 export interface Database {
   public: {
     Tables: {
@@ -104,6 +177,12 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Omit<Category, 'id' | 'created_at'>>;
+        Relationships: [];
+      };
+      itineraries: {
+        Row: ItineraryRow;
+        Insert: ItineraryInsert;
+        Update: ItineraryUpdate;
         Relationships: [];
       };
     };

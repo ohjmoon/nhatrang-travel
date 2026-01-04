@@ -18,7 +18,10 @@ import {
   Utensils,
   Heart,
   ArrowLeft,
+  ExternalLink,
+  Navigation,
 } from 'lucide-react';
+import { MapLinkIcon, GoogleLinksButton } from '@/components/google-links';
 import {
   accommodations,
   areas,
@@ -296,20 +299,28 @@ function AccommodationCard({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
 
-        {/* Favorite Button */}
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            onToggleFavorite();
-          }}
-          className={`absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-            isFavorite
-              ? 'bg-sunset-500 text-white'
-              : 'bg-white/80 text-ocean-600 hover:bg-white'
-          }`}
-        >
-          <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
-        </button>
+        {/* Action Buttons */}
+        <div className="absolute top-3 right-3 flex items-center gap-2">
+          <MapLinkIcon
+            name={accommodation.name}
+            address={`${accommodation.areaName}, Nha Trang`}
+            latitude={accommodation.coordinates?.lat}
+            longitude={accommodation.coordinates?.lng}
+          />
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              onToggleFavorite();
+            }}
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+              isFavorite
+                ? 'bg-sunset-500 text-white'
+                : 'bg-white/80 text-ocean-600 hover:bg-white'
+            }`}
+          >
+            <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+          </button>
+        </div>
 
         {/* Area Badge */}
         <div className="absolute bottom-3 left-3">
@@ -357,7 +368,7 @@ function AccommodationCard({
         </div>
 
         {/* Purpose Tags */}
-        <div className="flex gap-1">
+        <div className="flex gap-1 mb-3">
           {accommodation.purpose.map((p) => {
             const purpose = purposes.find((pur) => pur.id === p);
             return purpose ? (
@@ -367,6 +378,16 @@ function AccommodationCard({
             ) : null;
           })}
         </div>
+
+        {/* Google Links */}
+        <GoogleLinksButton
+          name={accommodation.name}
+          nameKo={accommodation.nameKo}
+          address={`${accommodation.areaName}, Nha Trang`}
+          latitude={accommodation.coordinates?.lat}
+          longitude={accommodation.coordinates?.lng}
+          variant="compact"
+        />
       </CardContent>
     </Card>
   );
