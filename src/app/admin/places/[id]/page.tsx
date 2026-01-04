@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Save, Loader2, Plus, X, ImageIcon } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Plus, X, ImageIcon, Search, MapPin } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import {
   PlaceType,
@@ -26,6 +26,8 @@ import {
   CATEGORY_OPTIONS,
 } from '@/lib/supabase/types';
 import { ImageUpload } from '@/components/admin/image-upload';
+import { PlaceSearchModal } from '@/components/google-places';
+import { PlaceDetails, getPhotoUrl } from '@/lib/google-places/types';
 
 interface PlaceFormData {
   type: PlaceType;
@@ -45,6 +47,14 @@ interface PlaceFormData {
   features: string[];
   recommended_items: string[];
   is_published: boolean;
+  // Google Places 추가 필드
+  google_place_id: string;
+  latitude: number | null;
+  longitude: number | null;
+  google_rating: number | null;
+  google_reviews_count: number | null;
+  phone: string;
+  website: string;
 }
 
 const defaultFormData: PlaceFormData = {
@@ -65,6 +75,14 @@ const defaultFormData: PlaceFormData = {
   features: [],
   recommended_items: [],
   is_published: true,
+  // Google Places 기본값
+  google_place_id: '',
+  latitude: null,
+  longitude: null,
+  google_rating: null,
+  google_reviews_count: null,
+  phone: '',
+  website: '',
 };
 
 export default function PlaceEditPage() {
@@ -78,6 +96,48 @@ export default function PlaceEditPage() {
   const [saving, setSaving] = useState(false);
   const [featureInput, setFeatureInput] = useState('');
   const [recommendedInput, setRecommendedInput] = useState('');
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+
+  // Google Places 검색 결과 선택 시 자동 입력
+  function handleGooglePlaceSelect(place: PlaceDetails) {
+    // 영업시간 포맷팅
+    let hoursText = '';
+    if (place.opening_hours?.weekday_text) {
+      // 첫 번째 요일만 표시 (또는 전체)
+      hoursText = place.opening_hours.weekday_text[0] || '';
+    }
+
+    // 사진 URL 추가
+    if (place.photos && place.photos.length > 0 && images.length === 0) {
+      const newImages: PlaceImage[] = place.photos.slice(0, 5).map((photo, idx) => ({
+        id: `google-${idx}`,
+        place_id: '',
+        url: getPhotoUrl(photo.photo_reference, 800),
+        alt: place.name,
+        sort_order: idx,
+        is_thumbnail: idx === 0,
+        created_at: new Date().toISOString(),
+      }));
+      setImages(newImages);
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      name: place.name,
+      address: place.formatted_address,
+      hours: hoursText,
+      phone: place.formatted_phone_number || '',
+      website: place.website || '',
+      google_place_id: place.place_id,
+      latitude: place.geometry?.location?.lat || null,
+      longitude: place.geometry?.location?.lng || null,
+      google_rating: place.rating || null,
+      google_reviews_count: place.user_ratings_total || null,
+      slug: prev.slug || generateSlug(place.name),
+    }));
+
+    setSearchModalOpen(false);
+  }
 
   useEffect(() => {
     if (!isNew) {
@@ -99,6 +159,8 @@ export default function PlaceEditPage() {
       if (error) throw error;
 
       if (place) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const placeData = place as any;
         setFormData({
           type: place.type,
           category: place.category,
@@ -117,6 +179,14 @@ export default function PlaceEditPage() {
           features: place.features || [],
           recommended_items: place.recommended_items || [],
           is_published: place.is_published,
+          // Google Places 필드
+          google_place_id: placeData.google_place_id || '',
+          latitude: placeData.latitude || null,
+          longitude: placeData.longitude || null,
+          google_rating: placeData.google_rating || null,
+          google_reviews_count: placeData.google_reviews_count || null,
+          phone: placeData.phone || '',
+          website: placeData.website || '',
         });
 
         // Fetch images
@@ -266,16 +336,35 @@ export default function PlaceEditPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href="/admin/places">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <h2 className="text-2xl font-bold">
-          {isNew ? '새 장소 추가' : '장소 수정'}
-        </h2>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link href="/admin/places">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <h2 className="text-2xl font-bold">
+            {isNew ? '새 장소 추가' : '장소 수정'}
+          </h2>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setSearchModalOpen(true)}
+          className="gap-2"
+        >
+          <Search className="h-4 w-4" />
+          Google Places에서 검색
+        </Button>
       </div>
+
+      {/* Google Places 검색 모달 */}
+      <PlaceSearchModal
+        open={searchModalOpen}
+        onClose={() => setSearchModalOpen(false)}
+        onSelect={handleGooglePlaceSelect}
+        placeType={formData.type === 'restaurant' ? 'restaurant' : undefined}
+      />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid gap-6 lg:grid-cols-3">
@@ -646,6 +735,51 @@ export default function PlaceEditPage() {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Google Places 정보 */}
+            {formData.google_place_id && (
+              <Card className="border-blue-200 bg-blue-50/50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-blue-600" />
+                    Google Places 연동
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  {formData.google_rating && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-yellow-500">★</span>
+                      <span>
+                        {formData.google_rating}
+                        {formData.google_reviews_count && (
+                          <span className="text-gray-500 ml-1">
+                            ({formData.google_reviews_count.toLocaleString()} 리뷰)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {formData.latitude && formData.longitude && (
+                    <div className="text-gray-600 text-xs">
+                      📍 {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
+                    </div>
+                  )}
+                  {formData.phone && (
+                    <div className="text-gray-600 text-xs">
+                      📞 {formData.phone}
+                    </div>
+                  )}
+                  {formData.website && (
+                    <div className="text-gray-600 text-xs truncate">
+                      🌐 <a href={formData.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{formData.website}</a>
+                    </div>
+                  )}
+                  <div className="text-gray-400 text-xs pt-2 border-t">
+                    Place ID: {formData.google_place_id.slice(0, 20)}...
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader>

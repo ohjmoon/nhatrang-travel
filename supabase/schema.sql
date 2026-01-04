@@ -44,7 +44,16 @@ CREATE TABLE places (
   coordinates JSONB,
   thumbnail TEXT,
   is_published BOOLEAN DEFAULT true,
-  sort_order INTEGER DEFAULT 0
+  sort_order INTEGER DEFAULT 0,
+  -- Google Places integration
+  google_place_id TEXT,
+  latitude DECIMAL(10, 7),
+  longitude DECIMAL(10, 7),
+  google_rating DECIMAL(2, 1),
+  google_reviews_count INTEGER,
+  phone VARCHAR(50),
+  website TEXT,
+  google_synced_at TIMESTAMP WITH TIME ZONE
 );
 
 -- Place images table (multiple images per place)
@@ -63,6 +72,8 @@ CREATE INDEX idx_places_type ON places(type);
 CREATE INDEX idx_places_category ON places(category);
 CREATE INDEX idx_places_type_category ON places(type, category);
 CREATE INDEX idx_places_is_published ON places(is_published);
+CREATE INDEX idx_places_google_place_id ON places(google_place_id);
+CREATE INDEX idx_places_coordinates ON places(latitude, longitude);
 CREATE INDEX idx_place_images_place_id ON place_images(place_id);
 
 -- Updated_at trigger function
@@ -133,6 +144,44 @@ INSERT INTO categories (type, slug, name, name_ko, icon, sort_order) VALUES
   ('shopping', 'mall', 'Shopping Mall', '쇼핑몰', '🏬', 2),
   ('shopping', 'market', 'Traditional Market', '전통시장', '🏮', 3),
   ('shopping', 'night-market', 'Night Market', '야시장', '🌙', 4);
+
+-- Itineraries table for saved travel plans
+CREATE TABLE itineraries (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  title VARCHAR(200) NOT NULL,
+  description TEXT,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  days JSONB NOT NULL,
+  total_places INTEGER DEFAULT 0,
+  thumbnail TEXT
+);
+
+-- Index for itineraries
+CREATE INDEX idx_itineraries_dates ON itineraries(start_date, end_date);
+
+-- Updated_at trigger for itineraries
+CREATE TRIGGER update_itineraries_updated_at
+  BEFORE UPDATE ON itineraries
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- RLS for itineraries
+ALTER TABLE itineraries ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public can read itineraries" ON itineraries
+  FOR SELECT USING (true);
+
+CREATE POLICY "Anyone can insert itineraries" ON itineraries
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Anyone can update itineraries" ON itineraries
+  FOR UPDATE USING (true);
+
+CREATE POLICY "Anyone can delete itineraries" ON itineraries
+  FOR DELETE USING (true);
 
 -- Storage bucket for images (run in Supabase Dashboard > Storage)
 -- CREATE BUCKET 'place-images' with public access
