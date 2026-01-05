@@ -27,7 +27,7 @@ import {
 } from '@/lib/supabase/types';
 import { ImageUpload } from '@/components/admin/image-upload';
 import { PlaceSearchModal } from '@/components/google-places';
-import { PlaceDetails, getPhotoUrl } from '@/lib/google-places/types';
+import { PlaceDetails } from '@/lib/google-places/types';
 
 interface PlaceFormData {
   type: PlaceType;
@@ -97,30 +97,17 @@ export default function PlaceEditPage() {
   const [featureInput, setFeatureInput] = useState('');
   const [recommendedInput, setRecommendedInput] = useState('');
   const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
 
   // Google Places 검색 결과 선택 시 자동 입력
-  function handleGooglePlaceSelect(place: PlaceDetails) {
+  async function handleGooglePlaceSelect(place: PlaceDetails) {
     // 영업시간 포맷팅
     let hoursText = '';
     if (place.opening_hours?.weekday_text) {
-      // 첫 번째 요일만 표시 (또는 전체)
       hoursText = place.opening_hours.weekday_text[0] || '';
     }
 
-    // 사진 URL 추가
-    if (place.photos && place.photos.length > 0 && images.length === 0) {
-      const newImages: PlaceImage[] = place.photos.slice(0, 5).map((photo, idx) => ({
-        id: `google-${idx}`,
-        place_id: '',
-        url: getPhotoUrl(photo.photo_reference, 800),
-        alt: place.name,
-        sort_order: idx,
-        is_thumbnail: idx === 0,
-        created_at: new Date().toISOString(),
-      }));
-      setImages(newImages);
-    }
-
+    // 폼 데이터 먼저 업데이트
     setFormData((prev) => ({
       ...prev,
       name: place.name,
@@ -133,10 +120,51 @@ export default function PlaceEditPage() {
       longitude: place.geometry?.location?.lng || null,
       google_rating: place.rating || null,
       google_reviews_count: place.user_ratings_total || null,
-      slug: prev.slug || generateSlug(place.name),
+      slug: generateSlug(place.name),
     }));
 
     setSearchModalOpen(false);
+
+    // 사진 다운로드 및 Supabase Storage 업로드
+    if (place.photos && place.photos.length > 0 && images.length === 0) {
+      setUploadingImages(true);
+      const photosToDownload = place.photos.slice(0, 5);
+      const uploadedImages: PlaceImage[] = [];
+
+      for (let idx = 0; idx < photosToDownload.length; idx++) {
+        const photo = photosToDownload[idx];
+        try {
+          const response = await fetch('/api/google-places/download-photo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              photoReference: photo.photo_reference,
+              placeName: place.name,
+              maxWidth: 1200,
+            }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            uploadedImages.push({
+              id: `google-${idx}`,
+              place_id: '',
+              url: data.url,
+              alt: place.name,
+              sort_order: idx,
+              is_thumbnail: idx === 0,
+              created_at: new Date().toISOString(),
+            });
+            // 업로드된 이미지 바로 표시
+            setImages([...uploadedImages]);
+          }
+        } catch (err) {
+          console.error(`Failed to download photo ${idx}:`, err);
+        }
+      }
+
+      setUploadingImages(false);
+    }
   }
 
   useEffect(() => {
@@ -783,7 +811,15 @@ export default function PlaceEditPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>이미지</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  이미지
+                  {uploadingImages && (
+                    <span className="text-sm font-normal text-blue-600 flex items-center gap-1">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Google에서 다운로드 중...
+                    </span>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <ImageUpload
