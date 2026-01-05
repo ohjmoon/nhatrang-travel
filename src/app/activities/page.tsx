@@ -19,18 +19,17 @@ import {
   Lightbulb,
   Calendar,
   Gauge,
-  ExternalLink,
-  Navigation,
-  MapPin,
 } from 'lucide-react';
 import { MapLinkIcon, GoogleLinksButton } from '@/components/google-links';
-import {
-  activities,
-  categories,
-  difficultyLevels,
-  filterActivities,
-  type Activity,
-} from '@/data/activities';
+import { useActivities, useActivityCategoryCounts, type ActivityData } from '@/lib/supabase/hooks';
+import { CATEGORY_OPTIONS } from '@/lib/supabase/types';
+
+const difficultyLevels = [
+  { id: 'all', name: '전체' },
+  { id: 'easy', name: '쉬움' },
+  { id: 'moderate', name: '보통' },
+  { id: 'hard', name: '어려움' },
+];
 
 export default function ActivitiesPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,13 +37,47 @@ export default function ActivitiesPage() {
   const [selectedDifficulty, setSelectedDifficulty] = useState('all');
   const [favorites, setFavorites] = useState<string[]>([]);
 
+  // Fetch from Supabase
+  const { activities, loading, error } = useActivities();
+  const { counts: categoryCounts } = useActivityCategoryCounts();
+
+  // Build categories with counts
+  const categories = useMemo(() => {
+    const baseCategories = [
+      { id: 'all', name: '전체', icon: '🎯', count: activities.length },
+      ...CATEGORY_OPTIONS.activity.map(cat => ({
+        id: cat.value,
+        name: cat.label,
+        icon: cat.icon,
+        count: categoryCounts[cat.value] || 0,
+      })),
+    ];
+    return baseCategories.filter(cat => cat.id === 'all' || cat.count > 0);
+  }, [activities.length, categoryCounts]);
+
+  // Filter activities
   const filteredActivities = useMemo(() => {
-    return filterActivities(activities, {
-      category: selectedCategory,
-      difficulty: selectedDifficulty,
-      search: searchQuery,
+    return activities.filter((a) => {
+      // Category filter
+      if (selectedCategory !== 'all' && a.category !== selectedCategory) {
+        return false;
+      }
+      // Difficulty filter
+      if (selectedDifficulty !== 'all' && a.difficulty !== selectedDifficulty) {
+        return false;
+      }
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return (
+          a.name.toLowerCase().includes(query) ||
+          a.nameKo.toLowerCase().includes(query) ||
+          a.highlights.some((h) => h.toLowerCase().includes(query))
+        );
+      }
+      return true;
     });
-  }, [searchQuery, selectedCategory, selectedDifficulty]);
+  }, [activities, searchQuery, selectedCategory, selectedDifficulty]);
 
   const toggleFavorite = (id: string) => {
     setFavorites((prev) =>
@@ -60,32 +93,6 @@ export default function ActivitiesPage() {
 
   const hasActiveFilters =
     searchQuery || selectedCategory !== 'all' || selectedDifficulty !== 'all';
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'easy':
-        return 'bg-green-100 text-green-700';
-      case 'moderate':
-        return 'bg-yellow-100 text-yellow-700';
-      case 'hard':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
-  };
-
-  const getDifficultyText = (difficulty: string) => {
-    switch (difficulty) {
-      case 'easy':
-        return '쉬움';
-      case 'moderate':
-        return '보통';
-      case 'hard':
-        return '어려움';
-      default:
-        return difficulty;
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-ocean-50 via-white to-palm-50">
@@ -201,46 +208,69 @@ export default function ActivitiesPage() {
 
       {/* Results */}
       <main className="container mx-auto px-4 py-8">
-        {/* Results Count */}
-        <div className="flex items-center justify-between mb-6">
-          <p className="text-ocean-600">
-            <span className="font-semibold text-ocean-800">{filteredActivities.length}</span>개의 액티비티
-          </p>
-          <div className="flex items-center gap-2 text-sm text-ocean-600">
-            <span>정렬:</span>
-            <button className="flex items-center gap-1 font-medium text-ocean-800">
-              인기순 <ChevronDown className="w-4 h-4" />
-            </button>
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ocean-500" />
           </div>
-        </div>
+        )}
 
-        {/* Activities Grid */}
-        {filteredActivities.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredActivities.map((activity) => (
-              <ActivityCard
-                key={activity.id}
-                activity={activity}
-                isFavorite={favorites.includes(activity.id)}
-                onToggleFavorite={() => toggleFavorite(activity.id)}
-              />
-            ))}
-          </div>
-        ) : (
+        {/* Error State */}
+        {error && (
           <div className="text-center py-16">
-            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-ocean-100 flex items-center justify-center">
-              <Zap className="w-10 h-10 text-ocean-400" />
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+              <X className="w-10 h-10 text-red-400" />
             </div>
-            <h3 className="text-xl font-semibold text-ocean-800 mb-2">
-              검색 결과가 없습니다
-            </h3>
-            <p className="text-ocean-600 mb-4">
-              다른 검색어나 필터를 사용해 보세요
-            </p>
-            <Button variant="ocean" onClick={clearFilters}>
-              필터 초기화
-            </Button>
+            <h3 className="text-xl font-semibold text-red-800 mb-2">데이터를 불러올 수 없습니다</h3>
+            <p className="text-red-600">{error}</p>
           </div>
+        )}
+
+        {/* Results Count & Grid */}
+        {!loading && !error && (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <p className="text-ocean-600">
+                <span className="font-semibold text-ocean-800">{filteredActivities.length}</span>개의 액티비티
+              </p>
+              <div className="flex items-center gap-2 text-sm text-ocean-600">
+                <span>정렬:</span>
+                <button className="flex items-center gap-1 font-medium text-ocean-800">
+                  인기순 <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Activities Grid */}
+            {filteredActivities.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredActivities.map((activity) => (
+                  <ActivityCard
+                    key={activity.id}
+                    activity={activity}
+                    isFavorite={favorites.includes(activity.id)}
+                    onToggleFavorite={() => toggleFavorite(activity.id)}
+                    categories={categories}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16">
+                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-ocean-100 flex items-center justify-center">
+                  <Zap className="w-10 h-10 text-ocean-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-ocean-800 mb-2">
+                  검색 결과가 없습니다
+                </h3>
+                <p className="text-ocean-600 mb-4">
+                  다른 검색어나 필터를 사용해 보세요
+                </p>
+                <Button variant="ocean" onClick={clearFilters}>
+                  필터 초기화
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </main>
 
@@ -259,10 +289,12 @@ function ActivityCard({
   activity,
   isFavorite,
   onToggleFavorite,
+  categories,
 }: {
-  activity: Activity;
+  activity: ActivityData;
   isFavorite: boolean;
   onToggleFavorite: () => void;
+  categories: { id: string; name: string; icon: string; count: number }[];
 }) {
   const category = categories.find((c) => c.id === activity.category);
 
@@ -361,51 +393,55 @@ function ActivityCard({
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <Clock className="w-4 h-4 text-ocean-500 flex-shrink-0" />
-            <span className="truncate">{activity.duration}</span>
+            <span className="truncate">{activity.duration || '2-3시간'}</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <Users className="w-4 h-4 text-ocean-500 flex-shrink-0" />
             <span className="truncate">{activity.groupSize}</span>
           </div>
           <div className="col-span-2 flex items-center gap-2 text-sm font-semibold text-ocean-600">
-            <span className="text-lg">{activity.price}</span>
+            <span className="text-lg">{activity.price || '가격 문의'}</span>
           </div>
         </div>
 
         {/* Included Items */}
-        <div className="mb-3">
-          <p className="text-xs text-ocean-500 font-medium mb-1.5">포함 사항</p>
-          <div className="flex flex-wrap gap-1.5">
-            {activity.included.slice(0, 4).map((item, index) => (
-              <span
-                key={index}
-                className="px-2 py-1 bg-ocean-50 text-ocean-700 text-xs rounded-md flex items-center gap-1"
-              >
-                <CheckCircle className="w-3 h-3" />
-                {item}
-              </span>
-            ))}
-            {activity.included.length > 4 && (
-              <span className="px-2 py-1 text-ocean-400 text-xs">
-                +{activity.included.length - 4}
-              </span>
-            )}
+        {activity.included && activity.included.length > 0 && (
+          <div className="mb-3">
+            <p className="text-xs text-ocean-500 font-medium mb-1.5">포함 사항</p>
+            <div className="flex flex-wrap gap-1.5">
+              {activity.included.slice(0, 4).map((item, index) => (
+                <span
+                  key={index}
+                  className="px-2 py-1 bg-ocean-50 text-ocean-700 text-xs rounded-md flex items-center gap-1"
+                >
+                  <CheckCircle className="w-3 h-3" />
+                  {item}
+                </span>
+              ))}
+              {activity.included.length > 4 && (
+                <span className="px-2 py-1 text-ocean-400 text-xs">
+                  +{activity.included.length - 4}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Highlights */}
-        <div className="mb-3">
-          <div className="flex flex-wrap gap-1.5">
-            {activity.highlights.slice(0, 3).map((highlight, index) => (
-              <span
-                key={index}
-                className="px-2 py-1 bg-palm-50 text-palm-700 text-xs rounded-md"
-              >
-                {highlight}
-              </span>
-            ))}
+        {activity.highlights && activity.highlights.length > 0 && (
+          <div className="mb-3">
+            <div className="flex flex-wrap gap-1.5">
+              {activity.highlights.slice(0, 3).map((highlight, index) => (
+                <span
+                  key={index}
+                  className="px-2 py-1 bg-palm-50 text-palm-700 text-xs rounded-md"
+                >
+                  {highlight}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Best Time & Tips */}
         <div className="space-y-2">

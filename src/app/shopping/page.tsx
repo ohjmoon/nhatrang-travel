@@ -19,17 +19,17 @@ import {
   Lightbulb,
   BadgePercent,
   CreditCard,
-  ExternalLink,
-  Navigation,
 } from 'lucide-react';
 import { MapLinkIcon, GoogleLinksButton } from '@/components/google-links';
-import {
-  shoppingPlaces,
-  categories,
-  priceLevels,
-  filterShopping,
-  type ShoppingPlace,
-} from '@/data/shopping';
+import { useShopping, useShoppingCategoryCounts, type ShoppingData } from '@/lib/supabase/hooks';
+import { CATEGORY_OPTIONS } from '@/lib/supabase/types';
+
+const priceLevels = [
+  { id: 'all', name: '전체' },
+  { id: 'budget', name: '저렴' },
+  { id: 'moderate', name: '보통' },
+  { id: 'premium', name: '고급' },
+];
 
 export default function ShoppingPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,13 +37,47 @@ export default function ShoppingPage() {
   const [selectedPrice, setSelectedPrice] = useState('all');
   const [favorites, setFavorites] = useState<string[]>([]);
 
+  // Fetch from Supabase
+  const { shopping, loading, error } = useShopping();
+  const { counts: categoryCounts } = useShoppingCategoryCounts();
+
+  // Build categories with counts
+  const categories = useMemo(() => {
+    const baseCategories = [
+      { id: 'all', name: '전체', icon: '🛒', count: shopping.length },
+      ...CATEGORY_OPTIONS.shopping.map(cat => ({
+        id: cat.value,
+        name: cat.label,
+        icon: cat.icon,
+        count: categoryCounts[cat.value] || 0,
+      })),
+    ];
+    return baseCategories.filter(cat => cat.id === 'all' || cat.count > 0);
+  }, [shopping.length, categoryCounts]);
+
+  // Filter shopping places
   const filteredPlaces = useMemo(() => {
-    return filterShopping(shoppingPlaces, {
-      category: selectedCategory,
-      priceLevel: selectedPrice,
-      search: searchQuery,
+    return shopping.filter((p) => {
+      // Category filter
+      if (selectedCategory !== 'all' && p.category !== selectedCategory) {
+        return false;
+      }
+      // Price level filter
+      if (selectedPrice !== 'all' && p.priceLevel !== selectedPrice) {
+        return false;
+      }
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return (
+          p.name.toLowerCase().includes(query) ||
+          p.nameKo.toLowerCase().includes(query) ||
+          p.popularItems.some((item) => item.toLowerCase().includes(query))
+        );
+      }
+      return true;
     });
-  }, [searchQuery, selectedCategory, selectedPrice]);
+  }, [shopping, searchQuery, selectedCategory, selectedPrice]);
 
   const toggleFavorite = (id: string) => {
     setFavorites((prev) =>
@@ -175,46 +209,69 @@ export default function ShoppingPage() {
 
       {/* Results */}
       <main className="container mx-auto px-4 py-8">
-        {/* Results Count */}
-        <div className="flex items-center justify-between mb-6">
-          <p className="text-sunset-600">
-            <span className="font-semibold text-sunset-800">{filteredPlaces.length}</span>개의 쇼핑 장소
-          </p>
-          <div className="flex items-center gap-2 text-sm text-sunset-600">
-            <span>정렬:</span>
-            <button className="flex items-center gap-1 font-medium text-sunset-800">
-              인기순 <ChevronDown className="w-4 h-4" />
-            </button>
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sunset-500" />
           </div>
-        </div>
+        )}
 
-        {/* Shopping Places Grid */}
-        {filteredPlaces.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredPlaces.map((place) => (
-              <ShoppingCard
-                key={place.id}
-                place={place}
-                isFavorite={favorites.includes(place.id)}
-                onToggleFavorite={() => toggleFavorite(place.id)}
-              />
-            ))}
-          </div>
-        ) : (
+        {/* Error State */}
+        {error && (
           <div className="text-center py-16">
-            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-sunset-100 flex items-center justify-center">
-              <ShoppingBag className="w-10 h-10 text-sunset-400" />
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+              <X className="w-10 h-10 text-red-400" />
             </div>
-            <h3 className="text-xl font-semibold text-sunset-800 mb-2">
-              검색 결과가 없습니다
-            </h3>
-            <p className="text-sunset-600 mb-4">
-              다른 검색어나 필터를 사용해 보세요
-            </p>
-            <Button variant="sunset" onClick={clearFilters}>
-              필터 초기화
-            </Button>
+            <h3 className="text-xl font-semibold text-red-800 mb-2">데이터를 불러올 수 없습니다</h3>
+            <p className="text-red-600">{error}</p>
           </div>
+        )}
+
+        {/* Results Count & Grid */}
+        {!loading && !error && (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <p className="text-sunset-600">
+                <span className="font-semibold text-sunset-800">{filteredPlaces.length}</span>개의 쇼핑 장소
+              </p>
+              <div className="flex items-center gap-2 text-sm text-sunset-600">
+                <span>정렬:</span>
+                <button className="flex items-center gap-1 font-medium text-sunset-800">
+                  인기순 <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Shopping Places Grid */}
+            {filteredPlaces.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredPlaces.map((place) => (
+                  <ShoppingCard
+                    key={place.id}
+                    place={place}
+                    isFavorite={favorites.includes(place.id)}
+                    onToggleFavorite={() => toggleFavorite(place.id)}
+                    categories={categories}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16">
+                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-sunset-100 flex items-center justify-center">
+                  <ShoppingBag className="w-10 h-10 text-sunset-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-sunset-800 mb-2">
+                  검색 결과가 없습니다
+                </h3>
+                <p className="text-sunset-600 mb-4">
+                  다른 검색어나 필터를 사용해 보세요
+                </p>
+                <Button variant="sunset" onClick={clearFilters}>
+                  필터 초기화
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </main>
 
@@ -233,10 +290,12 @@ function ShoppingCard({
   place,
   isFavorite,
   onToggleFavorite,
+  categories,
 }: {
-  place: ShoppingPlace;
+  place: ShoppingData;
   isFavorite: boolean;
   onToggleFavorite: () => void;
+  categories: { id: string; name: string; icon: string; count: number }[];
 }) {
   const category = categories.find((c) => c.id === place.category);
 
@@ -327,7 +386,7 @@ function ShoppingCard({
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <Clock className="w-4 h-4 text-sunset-500 flex-shrink-0" />
-            <span className="truncate">{place.hours}</span>
+            <span className="truncate">{place.hours || '영업시간 문의'}</span>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <span className={`px-2 py-0.5 rounded text-white text-xs font-medium ${priceDisplay.color}`}>
@@ -342,43 +401,47 @@ function ShoppingCard({
           </div>
           <div className="col-span-2 flex items-start gap-2 text-sm text-gray-600">
             <MapPin className="w-4 h-4 mt-0.5 text-sunset-500 flex-shrink-0" />
-            <span className="truncate">{place.address}</span>
+            <span className="truncate">{place.address || '주소 정보 없음'}</span>
           </div>
         </div>
 
         {/* Popular Items */}
-        <div className="mb-3">
-          <p className="text-xs text-sunset-500 font-medium mb-1.5">인기 상품</p>
-          <div className="flex flex-wrap gap-1.5">
-            {place.popularItems.slice(0, 4).map((item, index) => (
-              <span
-                key={index}
-                className="px-2 py-1 bg-sunset-50 text-sunset-700 text-xs rounded-md"
-              >
-                {item}
-              </span>
-            ))}
-            {place.popularItems.length > 4 && (
-              <span className="px-2 py-1 text-sunset-400 text-xs">
-                +{place.popularItems.length - 4}
-              </span>
-            )}
+        {place.popularItems && place.popularItems.length > 0 && (
+          <div className="mb-3">
+            <p className="text-xs text-sunset-500 font-medium mb-1.5">인기 상품</p>
+            <div className="flex flex-wrap gap-1.5">
+              {place.popularItems.slice(0, 4).map((item, index) => (
+                <span
+                  key={index}
+                  className="px-2 py-1 bg-sunset-50 text-sunset-700 text-xs rounded-md"
+                >
+                  {item}
+                </span>
+              ))}
+              {place.popularItems.length > 4 && (
+                <span className="px-2 py-1 text-sunset-400 text-xs">
+                  +{place.popularItems.length - 4}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Highlights */}
-        <div className="mb-3">
-          <div className="flex flex-wrap gap-1.5">
-            {place.highlights.slice(0, 3).map((highlight, index) => (
-              <span
-                key={index}
-                className="px-2 py-1 bg-palm-50 text-palm-700 text-xs rounded-md"
-              >
-                {highlight}
-              </span>
-            ))}
+        {place.highlights && place.highlights.length > 0 && (
+          <div className="mb-3">
+            <div className="flex flex-wrap gap-1.5">
+              {place.highlights.slice(0, 3).map((highlight, index) => (
+                <span
+                  key={index}
+                  className="px-2 py-1 bg-palm-50 text-palm-700 text-xs rounded-md"
+                >
+                  {highlight}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Tips */}
         {place.tips && (

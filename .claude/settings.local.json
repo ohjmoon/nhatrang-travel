@@ -31,7 +31,9 @@
       "Bash(claude plugin install --help:*)",
       "Bash(claude plugin install:*)",
       "WebFetch(domain:api.github.com)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:nhatrang-travel.vercel.app)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

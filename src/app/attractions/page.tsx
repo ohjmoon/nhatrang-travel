@@ -7,9 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
   Palmtree,
   Search,
-  MapPin,
   Star,
-  Filter,
   X,
   ChevronDown,
   Clock,
@@ -19,28 +17,53 @@ import {
   ArrowLeft,
   Camera,
   Lightbulb,
-  ExternalLink,
-  Navigation,
 } from 'lucide-react';
 import { MapLinkIcon, GoogleLinksButton } from '@/components/google-links';
-import {
-  attractions,
-  categories,
-  filterAttractions,
-  type Attraction,
-} from '@/data/attractions';
+import { useAttractions, useAttractionCategoryCounts, type AttractionData } from '@/lib/supabase/hooks';
+import { CATEGORY_OPTIONS } from '@/lib/supabase/types';
 
 export default function AttractionsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [favorites, setFavorites] = useState<string[]>([]);
 
+  // Fetch from Supabase
+  const { attractions, loading, error } = useAttractions();
+  const { counts: categoryCounts } = useAttractionCategoryCounts();
+
+  // Build categories with counts
+  const categories = useMemo(() => {
+    const baseCategories = [
+      { id: 'all', name: '전체', icon: '🏝️', count: attractions.length },
+      ...CATEGORY_OPTIONS.attraction.map(cat => ({
+        id: cat.value,
+        name: cat.label,
+        icon: cat.icon,
+        count: categoryCounts[cat.value] || 0,
+      })),
+    ];
+    return baseCategories.filter(cat => cat.id === 'all' || cat.count > 0);
+  }, [attractions.length, categoryCounts]);
+
+  // Filter attractions
   const filteredAttractions = useMemo(() => {
-    return filterAttractions(attractions, {
-      category: selectedCategory,
-      search: searchQuery,
+    return attractions.filter((a) => {
+      // Category filter
+      if (selectedCategory !== 'all' && a.category !== selectedCategory) {
+        return false;
+      }
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return (
+          a.name.toLowerCase().includes(query) ||
+          a.nameKo.toLowerCase().includes(query) ||
+          a.highlights.some((h) => h.toLowerCase().includes(query))
+        );
+      }
+      return true;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [attractions, searchQuery, selectedCategory]);
 
   const toggleFavorite = (id: string) => {
     setFavorites((prev) =>
@@ -148,46 +171,69 @@ export default function AttractionsPage() {
 
       {/* Results */}
       <main className="container mx-auto px-4 py-8">
-        {/* Results Count */}
-        <div className="flex items-center justify-between mb-6">
-          <p className="text-palm-600">
-            <span className="font-semibold text-palm-800">{filteredAttractions.length}</span>개의 명소
-          </p>
-          <div className="flex items-center gap-2 text-sm text-palm-600">
-            <span>정렬:</span>
-            <button className="flex items-center gap-1 font-medium text-palm-800">
-              인기순 <ChevronDown className="w-4 h-4" />
-            </button>
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-palm-500" />
           </div>
-        </div>
+        )}
 
-        {/* Attractions Grid */}
-        {filteredAttractions.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAttractions.map((attraction) => (
-              <AttractionCard
-                key={attraction.id}
-                attraction={attraction}
-                isFavorite={favorites.includes(attraction.id)}
-                onToggleFavorite={() => toggleFavorite(attraction.id)}
-              />
-            ))}
-          </div>
-        ) : (
+        {/* Error State */}
+        {error && (
           <div className="text-center py-16">
-            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-palm-100 flex items-center justify-center">
-              <Camera className="w-10 h-10 text-palm-400" />
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+              <X className="w-10 h-10 text-red-400" />
             </div>
-            <h3 className="text-xl font-semibold text-palm-800 mb-2">
-              검색 결과가 없습니다
-            </h3>
-            <p className="text-palm-600 mb-4">
-              다른 검색어나 카테고리를 선택해 보세요
-            </p>
-            <Button variant="palm" onClick={clearFilters}>
-              필터 초기화
-            </Button>
+            <h3 className="text-xl font-semibold text-red-800 mb-2">데이터를 불러올 수 없습니다</h3>
+            <p className="text-red-600">{error}</p>
           </div>
+        )}
+
+        {/* Results Count & Grid */}
+        {!loading && !error && (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <p className="text-palm-600">
+                <span className="font-semibold text-palm-800">{filteredAttractions.length}</span>개의 명소
+              </p>
+              <div className="flex items-center gap-2 text-sm text-palm-600">
+                <span>정렬:</span>
+                <button className="flex items-center gap-1 font-medium text-palm-800">
+                  인기순 <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Attractions Grid */}
+            {filteredAttractions.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredAttractions.map((attraction) => (
+                  <AttractionCard
+                    key={attraction.id}
+                    attraction={attraction}
+                    isFavorite={favorites.includes(attraction.id)}
+                    onToggleFavorite={() => toggleFavorite(attraction.id)}
+                    categories={categories}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16">
+                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-palm-100 flex items-center justify-center">
+                  <Camera className="w-10 h-10 text-palm-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-palm-800 mb-2">
+                  검색 결과가 없습니다
+                </h3>
+                <p className="text-palm-600 mb-4">
+                  다른 검색어나 카테고리를 선택해 보세요
+                </p>
+                <Button variant="palm" onClick={clearFilters}>
+                  필터 초기화
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </main>
 
@@ -206,10 +252,12 @@ function AttractionCard({
   attraction,
   isFavorite,
   onToggleFavorite,
+  categories,
 }: {
-  attraction: Attraction;
+  attraction: AttractionData;
   isFavorite: boolean;
   onToggleFavorite: () => void;
+  categories: { id: string; name: string; icon: string; count: number }[];
 }) {
   const category = categories.find((c) => c.id === attraction.category);
 
@@ -254,13 +302,13 @@ function AttractionCard({
 
         {/* Name & Rating on Image */}
         <div className="absolute bottom-3 left-3 right-3">
-          {attraction.rating && (
+          {attraction.rating > 0 && (
             <div className="flex items-center gap-2 mb-1">
               <div className="flex items-center gap-1 bg-palm-500 text-white px-2 py-0.5 rounded text-sm">
                 <Star className="w-3.5 h-3.5 fill-current" />
                 <span className="font-medium">{attraction.rating}</span>
               </div>
-              {attraction.reviewCount && (
+              {attraction.reviewCount > 0 && (
                 <span className="text-white/80 text-sm">
                   ({attraction.reviewCount.toLocaleString()})
                 </span>
@@ -279,11 +327,11 @@ function AttractionCard({
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <Clock className="w-4 h-4 text-palm-500 flex-shrink-0" />
-            <span className="truncate">{attraction.hours}</span>
+            <span className="truncate">{attraction.hours || '상시'}</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <Timer className="w-4 h-4 text-palm-500 flex-shrink-0" />
-            <span>{attraction.duration}</span>
+            <span>{attraction.duration || '1-2시간'}</span>
           </div>
           <div className="col-span-2 flex items-center gap-2 text-sm text-gray-600">
             <Ticket className="w-4 h-4 text-palm-500 flex-shrink-0" />
@@ -295,7 +343,7 @@ function AttractionCard({
         {attraction.highlights && attraction.highlights.length > 0 && (
           <div className="mb-3">
             <div className="flex flex-wrap gap-1.5">
-              {attraction.highlights.map((highlight, index) => (
+              {attraction.highlights.slice(0, 4).map((highlight, index) => (
                 <span
                   key={index}
                   className="px-2 py-1 bg-palm-50 text-palm-700 text-xs rounded-md"
