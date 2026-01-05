@@ -7,29 +7,22 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
   Palmtree,
   Search,
-  MapPin,
   Star,
   Filter,
   X,
   ChevronDown,
-  Wifi,
-  Car,
-  Waves,
-  Utensils,
   Heart,
   ArrowLeft,
-  ExternalLink,
-  Navigation,
+  Sparkles,
 } from 'lucide-react';
 import { MapLinkIcon, GoogleLinksButton } from '@/components/google-links';
+import { useAccommodations, useAccommodationAreaCounts, useAccommodationPurposeCounts, type AccommodationData } from '@/lib/supabase/hooks';
 import {
-  accommodations,
-  areas,
-  purposes,
-  priceRanges,
-  filterAccommodations,
-  type Accommodation,
-} from '@/data/accommodations';
+  ACCOMMODATION_AREAS,
+  ACCOMMODATION_PURPOSES,
+  ACCOMMODATION_PRICE_RANGES,
+  type AccommodationPurpose,
+} from '@/lib/supabase/types';
 
 export default function AccommodationPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,14 +32,62 @@ export default function AccommodationPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
 
+  // Fetch from Supabase
+  const { accommodations, loading, error } = useAccommodations();
+  const { counts: areaCounts } = useAccommodationAreaCounts();
+  const { counts: purposeCounts } = useAccommodationPurposeCounts();
+
+  // Build areas with counts
+  const areasWithCounts = useMemo(() => {
+    return ACCOMMODATION_AREAS.map(area => ({
+      ...area,
+      count: area.id === 'all' ? accommodations.length : (areaCounts[area.id] || 0),
+    })).filter(area => area.id === 'all' || area.count > 0);
+  }, [accommodations.length, areaCounts]);
+
+  // Build purposes with counts
+  const purposesWithCounts = useMemo(() => {
+    return ACCOMMODATION_PURPOSES.map(purpose => ({
+      ...purpose,
+      count: purpose.id === 'all' ? accommodations.length : (purposeCounts[purpose.id] || 0),
+    })).filter(purpose => purpose.id === 'all' || purpose.count > 0);
+  }, [accommodations.length, purposeCounts]);
+
+  // Filter accommodations
   const filteredAccommodations = useMemo(() => {
-    return filterAccommodations(accommodations, {
-      area: selectedArea,
-      purpose: selectedPurpose,
-      priceRange: selectedPrice,
-      search: searchQuery,
+    return accommodations.filter((acc) => {
+      // Area filter
+      if (selectedArea !== 'all' && acc.area !== selectedArea) {
+        return false;
+      }
+
+      // Purpose filter
+      if (selectedPurpose !== 'all' && !acc.purposes.includes(selectedPurpose as AccommodationPurpose)) {
+        return false;
+      }
+
+      // Price filter
+      if (selectedPrice !== 'all') {
+        const range = ACCOMMODATION_PRICE_RANGES.find(r => r.id === selectedPrice);
+        if (range && (acc.priceMin > range.max || acc.priceMax < range.min)) {
+          return false;
+        }
+      }
+
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return (
+          acc.name.toLowerCase().includes(query) ||
+          acc.nameKo.toLowerCase().includes(query) ||
+          acc.areaName.includes(searchQuery) ||
+          acc.description.toLowerCase().includes(query)
+        );
+      }
+
+      return true;
     });
-  }, [searchQuery, selectedArea, selectedPurpose, selectedPrice]);
+  }, [accommodations, searchQuery, selectedArea, selectedPurpose, selectedPrice]);
 
   const toggleFavorite = (id: string) => {
     setFavorites((prev) =>
@@ -138,17 +179,22 @@ export default function AccommodationPage() {
 
           {/* Quick Filters - Area Pills */}
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            {areas.map((area) => (
+            {areasWithCounts.map((area) => (
               <button
                 key={area.id}
                 onClick={() => setSelectedArea(area.id)}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
                   selectedArea === area.id
                     ? 'bg-ocean-500 text-white'
                     : 'bg-ocean-50 text-ocean-700 hover:bg-ocean-100'
                 }`}
               >
-                {area.name}
+                <span>{area.name}</span>
+                {area.id !== 'all' && (
+                  <span className={`text-xs ${selectedArea === area.id ? 'text-ocean-200' : 'text-ocean-400'}`}>
+                    {area.count}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -163,7 +209,7 @@ export default function AccommodationPage() {
                     여행 목적
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {purposes.map((purpose) => (
+                    {purposesWithCounts.map((purpose) => (
                       <button
                         key={purpose.id}
                         onClick={() => setSelectedPurpose(purpose.id)}
@@ -174,6 +220,11 @@ export default function AccommodationPage() {
                         }`}
                       >
                         {purpose.icon} {purpose.name}
+                        {purpose.id !== 'all' && (
+                          <span className={`ml-1 text-xs ${selectedPurpose === purpose.id ? 'text-sunset-200' : 'text-sunset-400'}`}>
+                            ({purpose.count})
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -185,7 +236,7 @@ export default function AccommodationPage() {
                     가격대 (1박)
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {priceRanges.map((range) => (
+                    {ACCOMMODATION_PRICE_RANGES.map((range) => (
                       <button
                         key={range.id}
                         onClick={() => setSelectedPrice(range.id)}
@@ -222,47 +273,71 @@ export default function AccommodationPage() {
 
       {/* Results */}
       <main className="container mx-auto px-4 py-8">
-        {/* Results Count */}
-        <div className="flex items-center justify-between mb-6">
-          <p className="text-ocean-600">
-            <span className="font-semibold text-ocean-800">{filteredAccommodations.length}</span>개의 숙소
-          </p>
-          <div className="flex items-center gap-2 text-sm text-ocean-600">
-            <span>정렬:</span>
-            <button className="flex items-center gap-1 font-medium text-ocean-800">
-              추천순 <ChevronDown className="w-4 h-4" />
-            </button>
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ocean-500" />
           </div>
-        </div>
+        )}
 
-        {/* Accommodation Grid */}
-        {filteredAccommodations.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAccommodations.map((accommodation) => (
-              <AccommodationCard
-                key={accommodation.id}
-                accommodation={accommodation}
-                isFavorite={favorites.includes(accommodation.id)}
-                onToggleFavorite={() => toggleFavorite(accommodation.id)}
-                formatPrice={formatPrice}
-              />
-            ))}
-          </div>
-        ) : (
+        {/* Error State */}
+        {error && (
           <div className="text-center py-16">
-            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-ocean-100 flex items-center justify-center">
-              <Search className="w-10 h-10 text-ocean-400" />
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+              <X className="w-10 h-10 text-red-400" />
             </div>
-            <h3 className="text-xl font-semibold text-ocean-800 mb-2">
-              검색 결과가 없습니다
-            </h3>
-            <p className="text-ocean-600 mb-4">
-              다른 검색어나 필터를 사용해 보세요
-            </p>
-            <Button variant="ocean" onClick={clearFilters}>
-              필터 초기화
-            </Button>
+            <h3 className="text-xl font-semibold text-red-800 mb-2">데이터를 불러올 수 없습니다</h3>
+            <p className="text-red-600">{error}</p>
           </div>
+        )}
+
+        {/* Results Count & Grid */}
+        {!loading && !error && (
+          <>
+            {/* Results Count */}
+            <div className="flex items-center justify-between mb-6">
+              <p className="text-ocean-600">
+                <span className="font-semibold text-ocean-800">{filteredAccommodations.length}</span>개의 숙소
+              </p>
+              <div className="flex items-center gap-2 text-sm text-ocean-600">
+                <span>정렬:</span>
+                <button className="flex items-center gap-1 font-medium text-ocean-800">
+                  추천순 <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Accommodation Grid */}
+            {filteredAccommodations.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredAccommodations.map((accommodation) => (
+                  <AccommodationCard
+                    key={accommodation.id}
+                    accommodation={accommodation}
+                    isFavorite={favorites.includes(accommodation.id)}
+                    onToggleFavorite={() => toggleFavorite(accommodation.id)}
+                    formatPrice={formatPrice}
+                    purposes={purposesWithCounts}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16">
+                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-ocean-100 flex items-center justify-center">
+                  <Search className="w-10 h-10 text-ocean-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-ocean-800 mb-2">
+                  검색 결과가 없습니다
+                </h3>
+                <p className="text-ocean-600 mb-4">
+                  다른 검색어나 필터를 사용해 보세요
+                </p>
+                <Button variant="ocean" onClick={clearFilters}>
+                  필터 초기화
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </main>
 
@@ -282,11 +357,13 @@ function AccommodationCard({
   isFavorite,
   onToggleFavorite,
   formatPrice,
+  purposes,
 }: {
-  accommodation: Accommodation;
+  accommodation: AccommodationData;
   isFavorite: boolean;
   onToggleFavorite: () => void;
   formatPrice: (price: number) => string;
+  purposes: { id: string; name: string; icon: string; count: number }[];
 }) {
   return (
     <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
@@ -322,6 +399,16 @@ function AccommodationCard({
           </button>
         </div>
 
+        {/* New Badge */}
+        {accommodation.isNew && (
+          <div className="absolute top-3 left-3">
+            <span className="px-3 py-1 rounded-full bg-sunset-500 text-white text-sm font-medium flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              {accommodation.openYear}년 신상
+            </span>
+          </div>
+        )}
+
         {/* Area Badge */}
         <div className="absolute bottom-3 left-3">
           <span className="px-3 py-1 rounded-full bg-white/90 text-ocean-700 text-sm font-medium">
@@ -339,15 +426,19 @@ function AccommodationCard({
 
       <CardContent className="p-4">
         {/* Rating */}
-        <div className="flex items-center gap-2 mb-2">
-          <div className="flex items-center gap-1 text-sunset-500">
-            <Star className="w-4 h-4 fill-current" />
-            <span className="font-semibold">{accommodation.rating}</span>
+        {accommodation.rating > 0 && (
+          <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-1 text-sunset-500">
+              <Star className="w-4 h-4 fill-current" />
+              <span className="font-semibold">{accommodation.rating}</span>
+            </div>
+            {accommodation.reviewCount > 0 && (
+              <span className="text-ocean-400 text-sm">
+                ({accommodation.reviewCount.toLocaleString()}개 리뷰)
+              </span>
+            )}
           </div>
-          <span className="text-ocean-400 text-sm">
-            ({accommodation.reviewCount.toLocaleString()}개 리뷰)
-          </span>
-        </div>
+        )}
 
         {/* Name */}
         <h3 className="font-bold text-lg text-ocean-800 mb-1 group-hover:text-ocean-600 transition-colors">
@@ -356,20 +447,22 @@ function AccommodationCard({
         <p className="text-sm text-ocean-500 mb-3">{accommodation.name}</p>
 
         {/* Features */}
-        <div className="flex flex-wrap gap-2 mb-3">
-          {accommodation.features.slice(0, 3).map((feature, index) => (
-            <span
-              key={index}
-              className="px-2 py-1 bg-ocean-50 text-ocean-600 text-xs rounded-md"
-            >
-              {feature}
-            </span>
-          ))}
-        </div>
+        {accommodation.features.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-3">
+            {accommodation.features.slice(0, 3).map((feature, index) => (
+              <span
+                key={index}
+                className="px-2 py-1 bg-ocean-50 text-ocean-600 text-xs rounded-md"
+              >
+                {feature}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Purpose Tags */}
         <div className="flex gap-1 mb-3">
-          {accommodation.purpose.map((p) => {
+          {accommodation.purposes.map((p) => {
             const purpose = purposes.find((pur) => pur.id === p);
             return purpose ? (
               <span key={p} className="text-sm" title={purpose.name}>

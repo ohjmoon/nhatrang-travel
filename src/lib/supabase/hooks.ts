@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from './client';
-import type { Place, PlaceType } from './types';
+import type { Place, PlaceType, Accommodation, AccommodationArea, AccommodationPurpose, AccommodationPriceRange } from './types';
 
 // Restaurant type for UI (mapped from Place)
 export interface RestaurantData {
@@ -411,4 +411,155 @@ export function useShopping() {
 
 export function useShoppingCategoryCounts() {
   return useCategoryCounts('shopping');
+}
+
+// ============ Accommodation Types & Hooks ============
+
+export interface AccommodationData {
+  id: string;
+  name: string;
+  nameKo: string;
+  area: AccommodationArea;
+  areaName: string;
+  purposes: AccommodationPurpose[];
+  priceRange: AccommodationPriceRange;
+  priceMin: number;
+  priceMax: number;
+  rating: number;
+  reviewCount: number;
+  description: string;
+  features: string[];
+  amenities: string[];
+  image: string;
+  coordinates: { lat: number; lng: number };
+  isNew: boolean;
+  openYear?: number;
+}
+
+function mapAccommodationToData(acc: Accommodation): AccommodationData {
+  return {
+    id: acc.id,
+    name: acc.name,
+    nameKo: acc.name_ko,
+    area: acc.area,
+    areaName: acc.area_name,
+    purposes: acc.purposes || [],
+    priceRange: acc.price_range,
+    priceMin: acc.price_min || 0,
+    priceMax: acc.price_max || 0,
+    rating: acc.google_rating || acc.rating || 0,
+    reviewCount: acc.google_reviews_count || acc.review_count || 0,
+    description: acc.description || '',
+    features: acc.features || [],
+    amenities: acc.amenities || [],
+    image: acc.thumbnail || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800',
+    coordinates: {
+      lat: acc.latitude ? Number(acc.latitude) : 0,
+      lng: acc.longitude ? Number(acc.longitude) : 0,
+    },
+    isNew: acc.is_new || false,
+    openYear: acc.open_year || undefined,
+  };
+}
+
+export function useAccommodations() {
+  const [accommodations, setAccommodations] = useState<AccommodationData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchAccommodations() {
+      try {
+        setLoading(true);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data, error: fetchError } = await (supabase as any)
+          .from('accommodations')
+          .select('*')
+          .eq('is_published', true)
+          .order('sort_order', { ascending: true });
+
+        if (fetchError) throw fetchError;
+
+        const mapped = (data || []).map(mapAccommodationToData);
+        setAccommodations(mapped);
+      } catch (err) {
+        console.error('Failed to fetch accommodations:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchAccommodations();
+  }, []);
+
+  return { accommodations, loading, error };
+}
+
+export function useAccommodationAreaCounts() {
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchCounts() {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data, error } = await (supabase as any)
+          .from('accommodations')
+          .select('area')
+          .eq('is_published', true);
+
+        if (error) throw error;
+
+        const areaCounts: Record<string, number> = {};
+        (data || []).forEach((acc: { area: string }) => {
+          areaCounts[acc.area] = (areaCounts[acc.area] || 0) + 1;
+        });
+        setCounts(areaCounts);
+      } catch (err) {
+        console.error('Failed to fetch area counts:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchCounts();
+  }, []);
+
+  return { counts, loading };
+}
+
+export function useAccommodationPurposeCounts() {
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchCounts() {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data, error } = await (supabase as any)
+          .from('accommodations')
+          .select('purposes')
+          .eq('is_published', true);
+
+        if (error) throw error;
+
+        const purposeCounts: Record<string, number> = {};
+        (data || []).forEach((acc: { purposes: string[] }) => {
+          (acc.purposes || []).forEach((purpose: string) => {
+            purposeCounts[purpose] = (purposeCounts[purpose] || 0) + 1;
+          });
+        });
+        setCounts(purposeCounts);
+      } catch (err) {
+        console.error('Failed to fetch purpose counts:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchCounts();
+  }, []);
+
+  return { counts, loading };
 }

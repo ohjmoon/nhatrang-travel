@@ -183,5 +183,75 @@ CREATE POLICY "Anyone can update itineraries" ON itineraries
 CREATE POLICY "Anyone can delete itineraries" ON itineraries
   FOR DELETE USING (true);
 
+-- ============================================
+-- Accommodations Table
+-- ============================================
+
+-- Create area enum for accommodations
+CREATE TYPE accommodation_area AS ENUM ('camranh', 'city', 'vinpearl', 'honchong', 'ninhvan');
+
+-- Create purpose enum for accommodations
+CREATE TYPE accommodation_purpose AS ENUM ('family', 'couple', 'allinclusive', 'budget', 'residence');
+
+-- Create price_range enum for accommodations
+CREATE TYPE accommodation_price_range AS ENUM ('$', '$$', '$$$', '$$$$');
+
+-- Accommodations table
+CREATE TABLE accommodations (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  slug VARCHAR(100) NOT NULL UNIQUE,
+  name VARCHAR(200) NOT NULL,
+  name_ko VARCHAR(200) NOT NULL,
+  area accommodation_area NOT NULL,
+  area_name VARCHAR(50) NOT NULL,
+  purposes accommodation_purpose[] NOT NULL,
+  price_range accommodation_price_range NOT NULL,
+  price_min INTEGER,
+  price_max INTEGER,
+  rating DECIMAL(2, 1) DEFAULT 0,
+  review_count INTEGER DEFAULT 0,
+  description TEXT,
+  features TEXT[],
+  amenities TEXT[],
+  thumbnail TEXT,
+  latitude DECIMAL(10, 7),
+  longitude DECIMAL(10, 7),
+  is_new BOOLEAN DEFAULT false,
+  open_year INTEGER,
+  is_published BOOLEAN DEFAULT true,
+  sort_order INTEGER DEFAULT 0,
+  -- Google Places integration
+  google_place_id TEXT,
+  google_rating DECIMAL(2, 1),
+  google_reviews_count INTEGER,
+  phone VARCHAR(50),
+  website TEXT,
+  google_synced_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Indexes for accommodations
+CREATE INDEX idx_accommodations_area ON accommodations(area);
+CREATE INDEX idx_accommodations_price_range ON accommodations(price_range);
+CREATE INDEX idx_accommodations_is_published ON accommodations(is_published);
+CREATE INDEX idx_accommodations_is_new ON accommodations(is_new);
+CREATE INDEX idx_accommodations_google_place_id ON accommodations(google_place_id);
+
+-- Updated_at trigger for accommodations
+CREATE TRIGGER update_accommodations_updated_at
+  BEFORE UPDATE ON accommodations
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- RLS for accommodations
+ALTER TABLE accommodations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public can read published accommodations" ON accommodations
+  FOR SELECT USING (is_published = true);
+
+CREATE POLICY "Admin full access to accommodations" ON accommodations
+  FOR ALL USING (auth.role() = 'authenticated');
+
 -- Storage bucket for images (run in Supabase Dashboard > Storage)
 -- CREATE BUCKET 'place-images' with public access

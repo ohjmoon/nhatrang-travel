@@ -9,6 +9,11 @@ export type Json =
 
 export type PlaceType = 'restaurant' | 'attraction' | 'activity' | 'shopping';
 
+// Accommodation types
+export type AccommodationArea = 'camranh' | 'city' | 'vinpearl' | 'honchong' | 'ninhvan';
+export type AccommodationPurpose = 'family' | 'couple' | 'allinclusive' | 'budget' | 'residence';
+export type AccommodationPriceRange = '$' | '$$' | '$$$' | '$$$$';
+
 export type RestaurantCategory = 'korean' | 'vietnamese' | 'seafood' | 'cafe' | 'bar' | 'western' | 'japanese' | 'etc';
 export type AttractionCategory = 'island' | 'nature' | 'culture' | 'theme-park';
 export type ActivityCategory = 'water' | 'spa' | 'tour' | 'party';
@@ -52,6 +57,49 @@ export interface PlaceImage {
   sort_order: number;
   is_thumbnail: boolean;
 }
+
+// Accommodation row type
+export interface Accommodation {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  slug: string;
+  name: string;
+  name_ko: string;
+  area: AccommodationArea;
+  area_name: string;
+  purposes: AccommodationPurpose[];
+  price_range: AccommodationPriceRange;
+  price_min: number | null;
+  price_max: number | null;
+  rating: number;
+  review_count: number;
+  description: string | null;
+  features: string[] | null;
+  amenities: string[] | null;
+  thumbnail: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  is_new: boolean;
+  open_year: number | null;
+  is_published: boolean;
+  sort_order: number;
+  // Google Places integration
+  google_place_id: string | null;
+  google_rating: number | null;
+  google_reviews_count: number | null;
+  phone: string | null;
+  website: string | null;
+  google_synced_at: string | null;
+}
+
+export type AccommodationInsert = Omit<Accommodation, 'id' | 'created_at' | 'updated_at'> & {
+  id?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type AccommodationUpdate = Partial<AccommodationInsert>;
 
 export interface Category {
   id: string;
@@ -185,11 +233,20 @@ export interface Database {
         Update: ItineraryUpdate;
         Relationships: [];
       };
+      accommodations: {
+        Row: Accommodation;
+        Insert: AccommodationInsert;
+        Update: AccommodationUpdate;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
     Enums: {
       place_type: PlaceType;
+      accommodation_area: AccommodationArea;
+      accommodation_purpose: AccommodationPurpose;
+      accommodation_price_range: AccommodationPriceRange;
     };
     CompositeTypes: Record<string, never>;
   };
@@ -233,3 +290,32 @@ export const CATEGORY_OPTIONS: Record<PlaceType, { value: string; label: string;
     { value: 'night-market', label: '야시장', icon: '🌙' },
   ],
 };
+
+// Accommodation area options
+export const ACCOMMODATION_AREAS: { id: AccommodationArea | 'all'; name: string; nameEn: string }[] = [
+  { id: 'all', name: '전체', nameEn: 'All' },
+  { id: 'camranh', name: '깜란', nameEn: 'Cam Ranh' },
+  { id: 'city', name: '시내', nameEn: 'City Center' },
+  { id: 'vinpearl', name: '빈펄', nameEn: 'Vinpearl' },
+  { id: 'honchong', name: '혼총', nameEn: 'Hon Chong' },
+  { id: 'ninhvan', name: '닌반베이', nameEn: 'Ninh Van Bay' },
+];
+
+// Accommodation purpose options
+export const ACCOMMODATION_PURPOSES: { id: AccommodationPurpose | 'all'; name: string; icon: string }[] = [
+  { id: 'all', name: '전체', icon: '🏨' },
+  { id: 'family', name: '가족', icon: '👨‍👩‍👧‍👦' },
+  { id: 'couple', name: '커플/허니문', icon: '💑' },
+  { id: 'allinclusive', name: '올인클루시브', icon: '🌟' },
+  { id: 'budget', name: '가성비', icon: '💰' },
+  { id: 'residence', name: '레지던스', icon: '🏠' },
+];
+
+// Accommodation price range options
+export const ACCOMMODATION_PRICE_RANGES: { id: AccommodationPriceRange | 'all'; name: string; min: number; max: number }[] = [
+  { id: 'all', name: '전체', min: 0, max: Infinity },
+  { id: '$', name: '~10만원', min: 0, max: 100000 },
+  { id: '$$', name: '10~20만원', min: 100000, max: 200000 },
+  { id: '$$$', name: '20~40만원', min: 200000, max: 400000 },
+  { id: '$$$$', name: '40만원~', min: 400000, max: Infinity },
+];
