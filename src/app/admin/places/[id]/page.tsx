@@ -125,10 +125,10 @@ export default function PlaceEditPage() {
 
     setSearchModalOpen(false);
 
-    // 사진 다운로드 및 Supabase Storage 업로드
+    // 대표 이미지 1개만 다운로드 및 Supabase Storage 업로드
     if (place.photos && place.photos.length > 0 && images.length === 0) {
       setUploadingImages(true);
-      const photosToDownload = place.photos.slice(0, 5);
+      const photosToDownload = place.photos.slice(0, 1);
       const uploadedImages: PlaceImage[] = [];
 
       for (let idx = 0; idx < photosToDownload.length; idx++) {
