@@ -23,13 +23,16 @@ import {
   Navigation,
 } from 'lucide-react';
 import { MapLinkIcon, GoogleLinksButton } from '@/components/google-links';
-import {
-  restaurants,
-  categories,
-  priceRanges,
-  filterRestaurants,
-  type Restaurant,
-} from '@/data/restaurants';
+import { useRestaurants, useRestaurantCategoryCounts, type RestaurantData } from '@/lib/supabase/hooks';
+import { CATEGORY_OPTIONS } from '@/lib/supabase/types';
+
+// Static price ranges for filtering
+const priceRanges = [
+  { id: 'all', name: '전체' },
+  { id: 'budget', name: '~10만동', max: 100000 },
+  { id: 'moderate', name: '10-25만동', min: 100000, max: 250000 },
+  { id: 'premium', name: '25만동~', min: 250000 },
+];
 
 export default function RestaurantsPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,13 +41,54 @@ export default function RestaurantsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
 
+  // Fetch from Supabase
+  const { restaurants, loading, error } = useRestaurants();
+  const { counts: categoryCounts } = useRestaurantCategoryCounts();
+
+  // Build categories with counts
+  const categories = useMemo(() => {
+    const baseCategories = [
+      { id: 'all', name: '전체', icon: '🍽️', count: restaurants.length },
+      ...CATEGORY_OPTIONS.restaurant.map(cat => ({
+        id: cat.value,
+        name: cat.label,
+        icon: cat.icon,
+        count: categoryCounts[cat.value] || 0,
+      })),
+    ];
+    return baseCategories.filter(cat => cat.id === 'all' || cat.count > 0);
+  }, [restaurants.length, categoryCounts]);
+
+  // Filter restaurants
   const filteredRestaurants = useMemo(() => {
-    return filterRestaurants(restaurants, {
-      category: selectedCategory,
-      priceRange: selectedPrice,
-      search: searchQuery,
+    return restaurants.filter((r) => {
+      // Category filter
+      if (selectedCategory !== 'all' && r.category !== selectedCategory) {
+        return false;
+      }
+      // Price filter
+      if (selectedPrice !== 'all') {
+        const priceRange = priceRanges.find((p) => p.id === selectedPrice);
+        if (priceRange) {
+          const min = 'min' in priceRange ? priceRange.min : 0;
+          const max = 'max' in priceRange ? priceRange.max : Infinity;
+          if (r.priceValue.min < min || r.priceValue.max > max) {
+            return false;
+          }
+        }
+      }
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return (
+          r.name.toLowerCase().includes(query) ||
+          r.nameKo.toLowerCase().includes(query) ||
+          r.recommendedMenu.some((m) => m.toLowerCase().includes(query))
+        );
+      }
+      return true;
     });
-  }, [searchQuery, selectedCategory, selectedPrice]);
+  }, [restaurants, searchQuery, selectedCategory, selectedPrice]);
 
   const toggleFavorite = (id: string) => {
     setFavorites((prev) =>
@@ -199,7 +243,27 @@ export default function RestaurantsPage() {
 
       {/* Results */}
       <main className="container mx-auto px-4 py-8">
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sunset-500" />
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="text-center py-16">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+              <X className="w-10 h-10 text-red-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-red-800 mb-2">데이터를 불러올 수 없습니다</h3>
+            <p className="text-red-600">{error}</p>
+          </div>
+        )}
+
         {/* Results Count */}
+        {!loading && !error && (
+          <>
         <div className="flex items-center justify-between mb-6">
           <p className="text-sunset-600">
             <span className="font-semibold text-sunset-800">{filteredRestaurants.length}</span>개의 맛집
@@ -221,6 +285,7 @@ export default function RestaurantsPage() {
                 restaurant={restaurant}
                 isFavorite={favorites.includes(restaurant.id)}
                 onToggleFavorite={() => toggleFavorite(restaurant.id)}
+                categories={categories}
               />
             ))}
           </div>
@@ -239,6 +304,8 @@ export default function RestaurantsPage() {
               필터 초기화
             </Button>
           </div>
+          )}
+          </>
         )}
       </main>
 
@@ -257,10 +324,12 @@ function RestaurantCard({
   restaurant,
   isFavorite,
   onToggleFavorite,
+  categories,
 }: {
-  restaurant: Restaurant;
+  restaurant: RestaurantData;
   isFavorite: boolean;
   onToggleFavorite: () => void;
+  categories: { id: string; name: string; icon: string; count: number }[];
 }) {
   const category = categories.find((c) => c.id === restaurant.category);
 
