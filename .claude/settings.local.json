@@ -39,7 +39,9 @@
       "mcp__puppeteer__puppeteer_screenshot",
       "Bash(dir /s /b D:workspacesnhatrang-travelsrccomponents*.tsx)",
       "mcp__puppeteer__puppeteer_click",
-      "mcp__puppeteer__puppeteer_evaluate"
+      "mcp__puppeteer__puppeteer_evaluate",
+      "mcp__postgres__query",
+      "mcp__puppeteer__puppeteer_fill"
     ]
   }
 }

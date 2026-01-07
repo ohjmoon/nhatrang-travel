@@ -252,13 +252,20 @@ export default function AccommodationEditPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // 필수 필드 검증
+    if (!formData.name_ko || !formData.name || !formData.area || !formData.price_range || formData.purposes.length === 0) {
+      alert('필수 필드를 모두 입력해주세요: 한글 이름, 영문 이름, 지역, 가격대, 목적');
+      return;
+    }
+
     setSaving(true);
 
     try {
       const thumbnail = images.find((img) => img.is_thumbnail)?.url || images[0]?.url || null;
 
       const accommodationData = {
-        slug: formData.slug,
+        slug: formData.slug || formData.name.toLowerCase().replace(/\s+/g, '-'),
         name: formData.name,
         name_ko: formData.name_ko,
         area: formData.area,
@@ -286,27 +293,34 @@ export default function AccommodationEditPage() {
         google_synced_at: formData.google_place_id ? new Date().toISOString() : null,
       };
 
+      console.log('Saving accommodation:', accommodationData);
+
       if (isNew) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error } = await (supabase as any)
+        const { data, error } = await (supabase as any)
           .from('accommodations')
-          .insert(accommodationData);
+          .insert(accommodationData)
+          .select();
 
+        console.log('Insert result:', { data, error });
         if (error) throw error;
         router.push('/admin/accommodations');
       } else {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error } = await (supabase as any)
+        const { data, error } = await (supabase as any)
           .from('accommodations')
           .update(accommodationData)
-          .eq('id', params.id);
+          .eq('id', params.id)
+          .select();
 
+        console.log('Update result:', { data, error });
         if (error) throw error;
         router.push('/admin/accommodations');
       }
     } catch (err) {
       console.error('Failed to save accommodation:', err);
-      alert('저장에 실패했습니다.');
+      const errorMessage = err instanceof Error ? err.message : JSON.stringify(err);
+      alert('저장에 실패했습니다: ' + errorMessage);
     } finally {
       setSaving(false);
     }

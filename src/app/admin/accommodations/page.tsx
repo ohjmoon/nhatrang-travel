@@ -137,6 +137,7 @@ function AccommodationsContent() {
       fetchAccommodations();
     } catch (err) {
       console.error('Failed to toggle publish:', err);
+      alert('상태 변경에 실패했습니다: ' + (err instanceof Error ? err.message : '알 수 없는 오류'));
     }
   }
 
@@ -154,6 +155,8 @@ function AccommodationsContent() {
       fetchAreaCounts();
     } catch (err) {
       console.error('Failed to delete accommodation:', err);
+      alert('삭제에 실패했습니다: ' + (err instanceof Error ? err.message : '알 수 없는 오류'));
+      setDeleteId(null);
     }
   }
 
@@ -357,9 +360,10 @@ function AccommodationsContent() {
                               </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() =>
-                                togglePublish(acc.id, acc.is_published)
-                              }
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                togglePublish(acc.id, acc.is_published);
+                              }}
                             >
                               {acc.is_published ? (
                                 <>
@@ -375,7 +379,10 @@ function AccommodationsContent() {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-red-600"
-                              onClick={() => setDeleteId(acc.id)}
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                setDeleteId(acc.id);
+                              }}
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
                               삭제
