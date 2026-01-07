@@ -296,25 +296,34 @@ export default function AccommodationEditPage() {
       console.log('Saving accommodation:', accommodationData);
 
       if (isNew) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data, error } = await (supabase as any)
-          .from('accommodations')
-          .insert(accommodationData)
-          .select();
+        const response = await fetch('/api/admin/accommodations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(accommodationData),
+        });
 
-        console.log('Insert result:', { data, error });
-        if (error) throw error;
+        const result = await response.json();
+        console.log('Insert result:', result);
+
+        if (!response.ok) {
+          throw new Error(result.error || '저장 실패');
+        }
+
         router.push('/admin/accommodations');
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data, error } = await (supabase as any)
-          .from('accommodations')
-          .update(accommodationData)
-          .eq('id', params.id)
-          .select();
+        const response = await fetch(`/api/admin/accommodations/${params.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(accommodationData),
+        });
 
-        console.log('Update result:', { data, error });
-        if (error) throw error;
+        const result = await response.json();
+        console.log('Update result:', result);
+
+        if (!response.ok) {
+          throw new Error(result.error || '저장 실패');
+        }
+
         router.push('/admin/accommodations');
       }
     } catch (err) {

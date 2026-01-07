@@ -127,13 +127,17 @@ function AccommodationsContent() {
 
   async function togglePublish(id: string, currentState: boolean) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any)
-        .from('accommodations')
-        .update({ is_published: !currentState })
-        .eq('id', id);
+      const response = await fetch(`/api/admin/accommodations/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_published: !currentState }),
+      });
 
-      if (error) throw error;
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || '상태 변경 실패');
+      }
+
       fetchAccommodations();
     } catch (err) {
       console.error('Failed to toggle publish:', err);
@@ -143,13 +147,15 @@ function AccommodationsContent() {
 
   async function deleteAccommodation(id: string) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any)
-        .from('accommodations')
-        .delete()
-        .eq('id', id);
+      const response = await fetch(`/api/admin/accommodations/${id}`, {
+        method: 'DELETE',
+      });
 
-      if (error) throw error;
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || '삭제 실패');
+      }
+
       setDeleteId(null);
       fetchAccommodations();
       fetchAreaCounts();
