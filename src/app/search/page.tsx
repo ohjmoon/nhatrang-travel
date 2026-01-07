@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import {
   Compass,
   ShoppingBag,
   Filter,
+  Loader2,
 } from 'lucide-react';
 import { useGlobalSearch, type SearchResult, type SearchResultType } from '@/lib/supabase/hooks';
 
@@ -64,7 +65,29 @@ const typeConfig: Record<SearchResultType, {
   },
 };
 
+// Loading fallback component
+function SearchPageLoading() {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-ocean-50 via-white to-palm-50 flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="w-12 h-12 text-ocean-500 animate-spin mx-auto mb-4" />
+        <p className="text-ocean-600">로딩 중...</p>
+      </div>
+    </div>
+  );
+}
+
+// Main search page wrapper with Suspense
 export default function SearchPage() {
+  return (
+    <Suspense fallback={<SearchPageLoading />}>
+      <SearchPageContent />
+    </Suspense>
+  );
+}
+
+// Actual search page content
+function SearchPageContent() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
 

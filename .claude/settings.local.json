@@ -37,7 +37,9 @@
       "Bash(taskkill:*)",
       "mcp__puppeteer__puppeteer_navigate",
       "mcp__puppeteer__puppeteer_screenshot",
-      "Bash(dir /s /b D:workspacesnhatrang-travelsrccomponents*.tsx)"
+      "Bash(dir /s /b D:workspacesnhatrang-travelsrccomponents*.tsx)",
+      "mcp__puppeteer__puppeteer_click",
+      "mcp__puppeteer__puppeteer_evaluate"
     ]
   }
 }
