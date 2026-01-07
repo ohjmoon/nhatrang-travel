@@ -15,7 +15,8 @@ export async function PATCH(
 
     const supabase = createAdminClient();
 
-    const { data, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
       .from('accommodations')
       .update(body)
       .eq('id', id)
@@ -50,7 +51,8 @@ export async function DELETE(
 
     const supabase = createAdminClient();
 
-    const { error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any)
       .from('accommodations')
       .delete()
       .eq('id', id);
@@ -84,7 +86,8 @@ export async function PUT(
 
     const supabase = createAdminClient();
 
-    const { data, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
       .from('accommodations')
       .update(body)
       .eq('id', id)
