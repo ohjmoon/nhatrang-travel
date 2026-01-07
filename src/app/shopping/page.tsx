@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,10 +19,13 @@ import {
   Lightbulb,
   BadgePercent,
   CreditCard,
+  Share2,
+  Check,
 } from 'lucide-react';
 import { MapLinkIcon, GoogleLinksButton } from '@/components/google-links';
 import { useShopping, useShoppingCategoryCounts, type ShoppingData } from '@/lib/supabase/hooks';
 import { CATEGORY_OPTIONS } from '@/lib/supabase/types';
+import { useUrlFilters } from '@/lib/hooks/useUrlFilters';
 
 const priceLevels = [
   { id: 'all', name: '전체' },
@@ -31,11 +34,23 @@ const priceLevels = [
   { id: 'premium', name: '고급' },
 ];
 
-export default function ShoppingPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedPrice, setSelectedPrice] = useState('all');
+const defaultFilters = {
+  q: '',
+  category: 'all',
+  price: 'all',
+};
+
+function ShoppingContent() {
+  const {
+    filters,
+    setFilter,
+    clearFilters,
+    hasActiveFilters,
+    copyShareableUrl,
+  } = useUrlFilters(defaultFilters);
+
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [copied, setCopied] = useState(false);
 
   // Fetch from Supabase
   const { shopping, loading, error } = useShopping();
@@ -59,16 +74,16 @@ export default function ShoppingPage() {
   const filteredPlaces = useMemo(() => {
     return shopping.filter((p) => {
       // Category filter
-      if (selectedCategory !== 'all' && p.category !== selectedCategory) {
+      if (filters.category !== 'all' && p.category !== filters.category) {
         return false;
       }
       // Price level filter
-      if (selectedPrice !== 'all' && p.priceLevel !== selectedPrice) {
+      if (filters.price !== 'all' && p.priceLevel !== filters.price) {
         return false;
       }
       // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
+      if (filters.q) {
+        const query = filters.q.toLowerCase();
         return (
           p.name.toLowerCase().includes(query) ||
           p.nameKo.toLowerCase().includes(query) ||
@@ -77,7 +92,7 @@ export default function ShoppingPage() {
       }
       return true;
     });
-  }, [shopping, searchQuery, selectedCategory, selectedPrice]);
+  }, [shopping, filters]);
 
   const toggleFavorite = (id: string) => {
     setFavorites((prev) =>
@@ -85,14 +100,13 @@ export default function ShoppingPage() {
     );
   };
 
-  const clearFilters = () => {
-    setSearchQuery('');
-    setSelectedCategory('all');
-    setSelectedPrice('all');
+  const handleShare = async () => {
+    const success = await copyShareableUrl();
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
-
-  const hasActiveFilters =
-    searchQuery || selectedCategory !== 'all' || selectedPrice !== 'all';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-sunset-50 via-white to-palm-50">
@@ -145,19 +159,29 @@ export default function ShoppingPage() {
               <input
                 type="text"
                 placeholder="상점명, 상품으로 검색..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={filters.q}
+                onChange={(e) => setFilter('q', e.target.value)}
                 className="w-full pl-10 pr-4 py-3 rounded-xl border border-sunset-200 focus:border-sunset-500 focus:ring-2 focus:ring-sunset-500/20 outline-none transition-all"
               />
             </div>
             {hasActiveFilters && (
-              <Button
-                variant="ghost"
-                onClick={clearFilters}
-                className="text-sunset-600"
-              >
-                <X className="w-4 h-4" />
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2 border-sunset-200"
+                  onClick={handleShare}
+                >
+                  {copied ? <Check className="w-4 h-4 text-green-500" /> : <Share2 className="w-4 h-4" />}
+                  <span className="hidden sm:inline">{copied ? '복사됨' : '공유'}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={clearFilters}
+                  className="text-sunset-600"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </>
             )}
           </div>
 
@@ -166,9 +190,9 @@ export default function ShoppingPage() {
             {categories.map((category) => (
               <button
                 key={category.id}
-                onClick={() => setSelectedCategory(category.id)}
+                onClick={() => setFilter('category', category.id)}
                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                  selectedCategory === category.id
+                  filters.category === category.id
                     ? 'bg-sunset-500 text-white'
                     : 'bg-sunset-50 text-sunset-700 hover:bg-sunset-100'
                 }`}
@@ -176,7 +200,7 @@ export default function ShoppingPage() {
                 <span>{category.icon}</span>
                 <span>{category.name}</span>
                 {category.id !== 'all' && (
-                  <span className={`text-xs ${selectedCategory === category.id ? 'text-sunset-200' : 'text-sunset-400'}`}>
+                  <span className={`text-xs ${filters.category === category.id ? 'text-sunset-200' : 'text-sunset-400'}`}>
                     {category.count}
                   </span>
                 )}
@@ -193,9 +217,9 @@ export default function ShoppingPage() {
             {priceLevels.map((level) => (
               <button
                 key={level.id}
-                onClick={() => setSelectedPrice(level.id)}
+                onClick={() => setFilter('price', level.id)}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                  selectedPrice === level.id
+                  filters.price === level.id
                     ? 'bg-palm-500 text-white'
                     : 'bg-palm-50 text-palm-700 hover:bg-palm-100'
                 }`}
@@ -460,5 +484,18 @@ function ShoppingCard({
         />
       </CardContent>
     </Card>
+  );
+}
+
+// Export with Suspense wrapper for useSearchParams
+export default function ShoppingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-b from-sunset-50 via-white to-palm-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sunset-500" />
+      </div>
+    }>
+      <ShoppingContent />
+    </Suspense>
   );
 }

@@ -46,6 +46,13 @@ export interface Place {
   thumbnail: string | null;
   is_published: boolean;
   sort_order: number;
+  // Google Places integration
+  google_place_id: string | null;
+  google_rating: number | null;
+  google_reviews_count: number | null;
+  phone: string | null;
+  website: string | null;
+  google_synced_at: string | null;
 }
 
 export interface PlaceImage {

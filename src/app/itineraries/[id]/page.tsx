@@ -26,6 +26,8 @@ import {
   ArrowDown,
   Navigation,
   Map,
+  Link2,
+  Check,
 } from 'lucide-react';
 import { GoogleMapsProvider, ItineraryMap } from '@/components/google-maps';
 import { useFetchItinerary } from '@/lib/itinerary';
@@ -71,6 +73,26 @@ export default function ItineraryViewPage() {
   } | null>(null);
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [showMap, setShowMap] = useState(true);
+  const [showShareCopied, setShowShareCopied] = useState(false);
+
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShowShareCopied(true);
+      setTimeout(() => setShowShareCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = shareUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setShowShareCopied(true);
+      setTimeout(() => setShowShareCopied(false), 2000);
+    }
+  };
 
   useEffect(() => {
     if (params.id) {
@@ -176,6 +198,24 @@ export default function ItineraryViewPage() {
             >
               <Map className="w-4 h-4" />
               지도 {showMap ? '숨기기' : '보기'}
+            </Button>
+            <Button
+              variant={showShareCopied ? 'palm' : 'outline'}
+              size="sm"
+              className="gap-2"
+              onClick={handleShare}
+            >
+              {showShareCopied ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  URL 복사됨!
+                </>
+              ) : (
+                <>
+                  <Link2 className="w-4 h-4" />
+                  일정 공유하기
+                </>
+              )}
             </Button>
           </div>
 

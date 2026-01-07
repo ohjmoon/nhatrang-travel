@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,15 +17,30 @@ import {
   ArrowLeft,
   Camera,
   Lightbulb,
+  Share2,
+  Check,
 } from 'lucide-react';
 import { MapLinkIcon, GoogleLinksButton } from '@/components/google-links';
 import { useAttractions, useAttractionCategoryCounts, type AttractionData } from '@/lib/supabase/hooks';
 import { CATEGORY_OPTIONS } from '@/lib/supabase/types';
+import { useUrlFilters } from '@/lib/hooks/useUrlFilters';
 
-export default function AttractionsPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+const defaultFilters = {
+  q: '',
+  category: 'all',
+};
+
+function AttractionsContent() {
+  const {
+    filters,
+    setFilter,
+    clearFilters,
+    hasActiveFilters,
+    copyShareableUrl,
+  } = useUrlFilters(defaultFilters);
+
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [copied, setCopied] = useState(false);
 
   // Fetch from Supabase
   const { attractions, loading, error } = useAttractions();
@@ -49,12 +64,12 @@ export default function AttractionsPage() {
   const filteredAttractions = useMemo(() => {
     return attractions.filter((a) => {
       // Category filter
-      if (selectedCategory !== 'all' && a.category !== selectedCategory) {
+      if (filters.category !== 'all' && a.category !== filters.category) {
         return false;
       }
       // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
+      if (filters.q) {
+        const query = filters.q.toLowerCase();
         return (
           a.name.toLowerCase().includes(query) ||
           a.nameKo.toLowerCase().includes(query) ||
@@ -63,7 +78,7 @@ export default function AttractionsPage() {
       }
       return true;
     });
-  }, [attractions, searchQuery, selectedCategory]);
+  }, [attractions, filters]);
 
   const toggleFavorite = (id: string) => {
     setFavorites((prev) =>
@@ -71,12 +86,13 @@ export default function AttractionsPage() {
     );
   };
 
-  const clearFilters = () => {
-    setSearchQuery('');
-    setSelectedCategory('all');
+  const handleShare = async () => {
+    const success = await copyShareableUrl();
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
-
-  const hasActiveFilters = searchQuery || selectedCategory !== 'all';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-palm-50 via-white to-ocean-50">
@@ -128,19 +144,29 @@ export default function AttractionsPage() {
               <input
                 type="text"
                 placeholder="명소, 키워드로 검색..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={filters.q}
+                onChange={(e) => setFilter('q', e.target.value)}
                 className="w-full pl-10 pr-4 py-3 rounded-xl border border-palm-200 focus:border-palm-500 focus:ring-2 focus:ring-palm-500/20 outline-none transition-all"
               />
             </div>
             {hasActiveFilters && (
-              <Button
-                variant="ghost"
-                onClick={clearFilters}
-                className="text-palm-600"
-              >
-                <X className="w-4 h-4" />
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2 border-palm-200"
+                  onClick={handleShare}
+                >
+                  {copied ? <Check className="w-4 h-4 text-green-500" /> : <Share2 className="w-4 h-4" />}
+                  <span className="hidden sm:inline">{copied ? '복사됨' : '공유'}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={clearFilters}
+                  className="text-palm-600"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </>
             )}
           </div>
 
@@ -149,9 +175,9 @@ export default function AttractionsPage() {
             {categories.map((category) => (
               <button
                 key={category.id}
-                onClick={() => setSelectedCategory(category.id)}
+                onClick={() => setFilter('category', category.id)}
                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                  selectedCategory === category.id
+                  filters.category === category.id
                     ? 'bg-palm-500 text-white'
                     : 'bg-palm-50 text-palm-700 hover:bg-palm-100'
                 }`}
@@ -159,7 +185,7 @@ export default function AttractionsPage() {
                 <span>{category.icon}</span>
                 <span>{category.name}</span>
                 {category.id !== 'all' && (
-                  <span className={`text-xs ${selectedCategory === category.id ? 'text-palm-200' : 'text-palm-400'}`}>
+                  <span className={`text-xs ${filters.category === category.id ? 'text-palm-200' : 'text-palm-400'}`}>
                     {category.count}
                   </span>
                 )}
@@ -372,5 +398,18 @@ function AttractionCard({
         />
       </CardContent>
     </Card>
+  );
+}
+
+// Export with Suspense wrapper for useSearchParams
+export default function AttractionsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-b from-palm-50 via-white to-ocean-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-palm-500" />
+      </div>
+    }>
+      <AttractionsContent />
+    </Suspense>
   );
 }

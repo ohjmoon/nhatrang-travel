@@ -14,63 +14,54 @@ import {
   ArrowRight,
   Sun
 } from "lucide-react"
+import { supabase } from "@/lib/supabase/client"
+import Link from "next/link"
 
-const categories = [
-  {
-    icon: Hotel,
-    title: "숙소",
-    titleEn: "Accommodation",
-    description: "깜란, 빈펄, 시내 등 지역별 최고의 숙소",
-    count: "30+",
-    color: "ocean",
-    href: "/accommodation"
-  },
-  {
-    icon: UtensilsCrossed,
-    title: "맛집",
-    titleEn: "Restaurants",
-    description: "한식, 베트남식, 씨푸드 등 현지 맛집",
-    count: "69",
-    color: "sunset",
-    href: "/restaurants"
-  },
-  {
-    icon: Camera,
-    title: "볼거리",
-    titleEn: "Attractions",
-    description: "섬, 해변, 문화유적, 테마파크",
-    count: "28",
-    color: "palm",
-    href: "/attractions"
-  },
-  {
-    icon: Waves,
-    title: "액티비티",
-    titleEn: "Activities",
-    description: "수상스포츠, 스파, 투어, 나이트라이프",
-    count: "21",
-    color: "ocean",
-    href: "/activities"
-  },
-  {
-    icon: ShoppingBag,
-    title: "쇼핑",
-    titleEn: "Shopping",
-    description: "마트, 쇼핑몰, 야시장, 기념품",
-    count: "10",
-    color: "sunset",
-    href: "/shopping"
-  },
-  {
-    icon: Calendar,
-    title: "일정 플래너",
-    titleEn: "Planner",
-    description: "나만의 완벽한 여행 일정 만들기",
-    count: "NEW",
-    color: "palm",
-    href: "/planner"
-  },
-]
+// Fetch counts from Supabase
+async function getCounts() {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = supabase as any;
+
+    const [accommodationResult, placesResult] = await Promise.all([
+      sb.from('accommodations').select('id', { count: 'exact', head: true }).eq('is_published', true),
+      sb.from('places').select('id, type', { count: 'exact' }).eq('is_published', true),
+    ]);
+
+    const accommodationCount = accommodationResult.count || 0;
+    const places = placesResult.data || [];
+
+    const placeTypeCounts = {
+      restaurant: 0,
+      attraction: 0,
+      activity: 0,
+      shopping: 0,
+    };
+
+    places.forEach((place: { type: string }) => {
+      if (place.type in placeTypeCounts) {
+        placeTypeCounts[place.type as keyof typeof placeTypeCounts]++;
+      }
+    });
+
+    return {
+      accommodation: accommodationCount,
+      restaurant: placeTypeCounts.restaurant,
+      attraction: placeTypeCounts.attraction,
+      activity: placeTypeCounts.activity,
+      shopping: placeTypeCounts.shopping,
+    };
+  } catch (error) {
+    console.error('Failed to fetch counts:', error);
+    return {
+      accommodation: 40,
+      restaurant: 69,
+      attraction: 28,
+      activity: 21,
+      shopping: 10,
+    };
+  }
+}
 
 const features = [
   {
@@ -95,7 +86,66 @@ const features = [
   },
 ]
 
-export default function Home() {
+export default async function Home() {
+  const counts = await getCounts();
+
+  const categories = [
+    {
+      icon: Hotel,
+      title: "숙소",
+      titleEn: "Accommodation",
+      description: "깜란, 빈펄, 시내 등 지역별 최고의 숙소",
+      count: `${counts.accommodation}`,
+      color: "ocean",
+      href: "/accommodation"
+    },
+    {
+      icon: UtensilsCrossed,
+      title: "맛집",
+      titleEn: "Restaurants",
+      description: "한식, 베트남식, 씨푸드 등 현지 맛집",
+      count: `${counts.restaurant}`,
+      color: "sunset",
+      href: "/restaurants"
+    },
+    {
+      icon: Camera,
+      title: "볼거리",
+      titleEn: "Attractions",
+      description: "섬, 해변, 문화유적, 테마파크",
+      count: `${counts.attraction}`,
+      color: "palm",
+      href: "/attractions"
+    },
+    {
+      icon: Waves,
+      title: "액티비티",
+      titleEn: "Activities",
+      description: "수상스포츠, 스파, 투어, 나이트라이프",
+      count: `${counts.activity}`,
+      color: "ocean",
+      href: "/activities"
+    },
+    {
+      icon: ShoppingBag,
+      title: "쇼핑",
+      titleEn: "Shopping",
+      description: "마트, 쇼핑몰, 야시장, 기념품",
+      count: `${counts.shopping}`,
+      color: "sunset",
+      href: "/shopping"
+    },
+    {
+      icon: Calendar,
+      title: "일정 플래너",
+      titleEn: "Planner",
+      description: "나만의 완벽한 여행 일정 만들기",
+      count: "NEW",
+      color: "palm",
+      href: "/planner"
+    },
+  ]
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-ocean-50 via-white to-palm-50">
       {/* Navigation */}
@@ -108,14 +158,16 @@ export default function Home() {
             <span className="font-bold text-xl text-ocean-800">나트랑 트래블</span>
           </div>
           <div className="hidden md:flex items-center gap-6">
-            <a href="/accommodation" className="text-ocean-700 hover:text-ocean-500 transition-colors">숙소</a>
-            <a href="/restaurants" className="text-ocean-700 hover:text-ocean-500 transition-colors">맛집</a>
-            <a href="/attractions" className="text-ocean-700 hover:text-ocean-500 transition-colors">볼거리</a>
-            <a href="/activities" className="text-ocean-700 hover:text-ocean-500 transition-colors">액티비티</a>
+            <Link href="/accommodation" className="text-ocean-700 hover:text-ocean-500 transition-colors">숙소</Link>
+            <Link href="/restaurants" className="text-ocean-700 hover:text-ocean-500 transition-colors">맛집</Link>
+            <Link href="/attractions" className="text-ocean-700 hover:text-ocean-500 transition-colors">볼거리</Link>
+            <Link href="/activities" className="text-ocean-700 hover:text-ocean-500 transition-colors">액티비티</Link>
           </div>
-          <Button variant="ocean" size="sm">
-            일정 만들기
-          </Button>
+          <Link href="/planner">
+            <Button variant="ocean" size="sm">
+              일정 만들기
+            </Button>
+          </Link>
         </div>
       </nav>
 
@@ -151,27 +203,31 @@ export default function Home() {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button variant="ocean" size="xl" className="group">
-                여행 일정 만들기
-                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
-              <Button variant="outline" size="xl" className="border-ocean-300 text-ocean-700 hover:bg-ocean-50">
-                둘러보기
-              </Button>
+              <Link href="/planner">
+                <Button variant="ocean" size="xl" className="group">
+                  여행 일정 만들기
+                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+              <Link href="/accommodation">
+                <Button variant="outline" size="xl" className="border-ocean-300 text-ocean-700 hover:bg-ocean-50">
+                  둘러보기
+                </Button>
+              </Link>
             </div>
 
             {/* Stats */}
             <div className="flex justify-center gap-8 md:gap-16 mt-12">
               <div className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-ocean-600">69+</div>
+                <div className="text-3xl md:text-4xl font-bold text-ocean-600">{counts.restaurant}+</div>
                 <div className="text-sm text-ocean-500">맛집</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-sunset-500">30+</div>
+                <div className="text-3xl md:text-4xl font-bold text-sunset-500">{counts.accommodation}+</div>
                 <div className="text-sm text-sunset-600">숙소</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-palm-500">28+</div>
+                <div className="text-3xl md:text-4xl font-bold text-palm-500">{counts.attraction}+</div>
                 <div className="text-sm text-palm-600">볼거리</div>
               </div>
             </div>
@@ -213,7 +269,7 @@ export default function Home() {
               }
 
               return (
-                <a href={category.href} key={category.title}>
+                <Link href={category.href} key={category.title}>
                   <Card className={`group cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${colorClasses[category.color as keyof typeof colorClasses].split(' ').slice(0, 2).join(' ')}`}>
                     <CardHeader className="pb-2">
                       <div className="flex items-start justify-between">
@@ -239,7 +295,7 @@ export default function Home() {
                       </p>
                     </CardContent>
                   </Card>
-                </a>
+                </Link>
               )
             })}
           </div>
@@ -293,13 +349,17 @@ export default function Home() {
               무료로 시작할 수 있습니다.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button variant="sunset" size="xl" className="group">
-                무료로 시작하기
-                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
-              <Button variant="ghost" size="xl" className="text-white hover:bg-white/20">
-                더 알아보기
-              </Button>
+              <Link href="/planner">
+                <Button variant="sunset" size="xl" className="group">
+                  무료로 시작하기
+                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+              <Link href="/accommodation">
+                <Button variant="ghost" size="xl" className="text-white hover:bg-white/20">
+                  더 알아보기
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

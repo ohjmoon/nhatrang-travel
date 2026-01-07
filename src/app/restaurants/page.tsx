@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,18 +13,17 @@ import {
   X,
   ChevronDown,
   Clock,
-  Phone,
   Heart,
   ArrowLeft,
   UtensilsCrossed,
-  DollarSign,
   Lightbulb,
-  ExternalLink,
-  Navigation,
+  Share2,
+  Check,
 } from 'lucide-react';
 import { MapLinkIcon, GoogleLinksButton } from '@/components/google-links';
 import { useRestaurants, useRestaurantCategoryCounts, type RestaurantData } from '@/lib/supabase/hooks';
 import { CATEGORY_OPTIONS } from '@/lib/supabase/types';
+import { useUrlFilters } from '@/lib/hooks/useUrlFilters';
 
 // Static price ranges for filtering
 const priceRanges = [
@@ -34,12 +33,25 @@ const priceRanges = [
   { id: 'premium', name: '25만동~', min: 250000 },
 ];
 
-export default function RestaurantsPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedPrice, setSelectedPrice] = useState('all');
+// Default filter values
+const defaultFilters = {
+  q: '',
+  category: 'all',
+  price: 'all',
+};
+
+function RestaurantsContent() {
+  const {
+    filters,
+    setFilter,
+    clearFilters,
+    hasActiveFilters,
+    copyShareableUrl,
+  } = useUrlFilters(defaultFilters);
+
   const [showFilters, setShowFilters] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [copied, setCopied] = useState(false);
 
   // Fetch from Supabase
   const { restaurants, loading, error } = useRestaurants();
@@ -63,23 +75,25 @@ export default function RestaurantsPage() {
   const filteredRestaurants = useMemo(() => {
     return restaurants.filter((r) => {
       // Category filter
-      if (selectedCategory !== 'all' && r.category !== selectedCategory) {
+      if (filters.category !== 'all' && r.category !== filters.category) {
         return false;
       }
       // Price filter
-      if (selectedPrice !== 'all') {
-        const priceRange = priceRanges.find((p) => p.id === selectedPrice);
+      if (filters.price !== 'all') {
+        const priceRange = priceRanges.find((p) => p.id === filters.price);
         if (priceRange) {
-          const min = 'min' in priceRange ? priceRange.min : 0;
-          const max = 'max' in priceRange ? priceRange.max : Infinity;
-          if (r.priceValue.min < min || r.priceValue.max > max) {
+          const rangeMin = ('min' in priceRange && priceRange.min) ? priceRange.min : 0;
+          const rangeMax = ('max' in priceRange && priceRange.max) ? priceRange.max : Infinity;
+          const rMin = r.priceValue?.min ?? 0;
+          const rMax = r.priceValue?.max ?? Infinity;
+          if (rMin < rangeMin || rMax > rangeMax) {
             return false;
           }
         }
       }
       // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
+      if (filters.q) {
+        const query = filters.q.toLowerCase();
         return (
           r.name.toLowerCase().includes(query) ||
           r.nameKo.toLowerCase().includes(query) ||
@@ -88,7 +102,7 @@ export default function RestaurantsPage() {
       }
       return true;
     });
-  }, [restaurants, searchQuery, selectedCategory, selectedPrice]);
+  }, [restaurants, filters]);
 
   const toggleFavorite = (id: string) => {
     setFavorites((prev) =>
@@ -96,14 +110,13 @@ export default function RestaurantsPage() {
     );
   };
 
-  const clearFilters = () => {
-    setSearchQuery('');
-    setSelectedCategory('all');
-    setSelectedPrice('all');
+  const handleShare = async () => {
+    const success = await copyShareableUrl();
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
-
-  const hasActiveFilters =
-    searchQuery || selectedCategory !== 'all' || selectedPrice !== 'all';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-sunset-50 via-white to-palm-50">
@@ -155,8 +168,8 @@ export default function RestaurantsPage() {
               <input
                 type="text"
                 placeholder="식당명, 메뉴로 검색..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={filters.q}
+                onChange={(e) => setFilter('q', e.target.value)}
                 className="w-full pl-10 pr-4 py-3 rounded-xl border border-sunset-200 focus:border-sunset-500 focus:ring-2 focus:ring-sunset-500/20 outline-none transition-all"
               />
             </div>
@@ -171,6 +184,16 @@ export default function RestaurantsPage() {
                 <span className="w-2 h-2 rounded-full bg-sunset-500" />
               )}
             </Button>
+            {hasActiveFilters && (
+              <Button
+                variant="outline"
+                className="flex items-center gap-2 border-sunset-200"
+                onClick={handleShare}
+              >
+                {copied ? <Check className="w-4 h-4 text-green-500" /> : <Share2 className="w-4 h-4" />}
+                <span className="hidden sm:inline">{copied ? '복사됨' : '공유'}</span>
+              </Button>
+            )}
           </div>
 
           {/* Quick Filters - Category Pills */}
@@ -178,9 +201,9 @@ export default function RestaurantsPage() {
             {categories.map((category) => (
               <button
                 key={category.id}
-                onClick={() => setSelectedCategory(category.id)}
+                onClick={() => setFilter('category', category.id)}
                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                  selectedCategory === category.id
+                  filters.category === category.id
                     ? 'bg-sunset-500 text-white'
                     : 'bg-sunset-50 text-sunset-700 hover:bg-sunset-100'
                 }`}
@@ -188,7 +211,7 @@ export default function RestaurantsPage() {
                 <span>{category.icon}</span>
                 <span>{category.name}</span>
                 {category.id !== 'all' && (
-                  <span className={`text-xs ${selectedCategory === category.id ? 'text-sunset-200' : 'text-sunset-400'}`}>
+                  <span className={`text-xs ${filters.category === category.id ? 'text-sunset-200' : 'text-sunset-400'}`}>
                     {category.count}
                   </span>
                 )}
@@ -209,9 +232,9 @@ export default function RestaurantsPage() {
                     {priceRanges.map((range) => (
                       <button
                         key={range.id}
-                        onClick={() => setSelectedPrice(range.id)}
+                        onClick={() => setFilter('price', range.id)}
                         className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
-                          selectedPrice === range.id
+                          filters.price === range.id
                             ? 'bg-palm-500 text-white'
                             : 'bg-palm-50 text-palm-700 hover:bg-palm-100'
                         }`}
@@ -449,5 +472,18 @@ function RestaurantCard({
         />
       </CardContent>
     </Card>
+  );
+}
+
+// Export with Suspense wrapper for useSearchParams
+export default function RestaurantsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-b from-sunset-50 via-white to-palm-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sunset-500" />
+      </div>
+    }>
+      <RestaurantsContent />
+    </Suspense>
   );
 }

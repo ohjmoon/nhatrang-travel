@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,10 +19,13 @@ import {
   Lightbulb,
   Calendar,
   Gauge,
+  Share2,
+  Check,
 } from 'lucide-react';
 import { MapLinkIcon, GoogleLinksButton } from '@/components/google-links';
 import { useActivities, useActivityCategoryCounts, type ActivityData } from '@/lib/supabase/hooks';
 import { CATEGORY_OPTIONS } from '@/lib/supabase/types';
+import { useUrlFilters } from '@/lib/hooks/useUrlFilters';
 
 const difficultyLevels = [
   { id: 'all', name: '전체' },
@@ -31,11 +34,23 @@ const difficultyLevels = [
   { id: 'hard', name: '어려움' },
 ];
 
-export default function ActivitiesPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedDifficulty, setSelectedDifficulty] = useState('all');
+const defaultFilters = {
+  q: '',
+  category: 'all',
+  difficulty: 'all',
+};
+
+function ActivitiesContent() {
+  const {
+    filters,
+    setFilter,
+    clearFilters,
+    hasActiveFilters,
+    copyShareableUrl,
+  } = useUrlFilters(defaultFilters);
+
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [copied, setCopied] = useState(false);
 
   // Fetch from Supabase
   const { activities, loading, error } = useActivities();
@@ -59,16 +74,16 @@ export default function ActivitiesPage() {
   const filteredActivities = useMemo(() => {
     return activities.filter((a) => {
       // Category filter
-      if (selectedCategory !== 'all' && a.category !== selectedCategory) {
+      if (filters.category !== 'all' && a.category !== filters.category) {
         return false;
       }
       // Difficulty filter
-      if (selectedDifficulty !== 'all' && a.difficulty !== selectedDifficulty) {
+      if (filters.difficulty !== 'all' && a.difficulty !== filters.difficulty) {
         return false;
       }
       // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
+      if (filters.q) {
+        const query = filters.q.toLowerCase();
         return (
           a.name.toLowerCase().includes(query) ||
           a.nameKo.toLowerCase().includes(query) ||
@@ -77,7 +92,7 @@ export default function ActivitiesPage() {
       }
       return true;
     });
-  }, [activities, searchQuery, selectedCategory, selectedDifficulty]);
+  }, [activities, filters]);
 
   const toggleFavorite = (id: string) => {
     setFavorites((prev) =>
@@ -85,14 +100,13 @@ export default function ActivitiesPage() {
     );
   };
 
-  const clearFilters = () => {
-    setSearchQuery('');
-    setSelectedCategory('all');
-    setSelectedDifficulty('all');
+  const handleShare = async () => {
+    const success = await copyShareableUrl();
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
-
-  const hasActiveFilters =
-    searchQuery || selectedCategory !== 'all' || selectedDifficulty !== 'all';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-ocean-50 via-white to-palm-50">
@@ -144,19 +158,29 @@ export default function ActivitiesPage() {
               <input
                 type="text"
                 placeholder="액티비티, 키워드로 검색..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={filters.q}
+                onChange={(e) => setFilter('q', e.target.value)}
                 className="w-full pl-10 pr-4 py-3 rounded-xl border border-ocean-200 focus:border-ocean-500 focus:ring-2 focus:ring-ocean-500/20 outline-none transition-all"
               />
             </div>
             {hasActiveFilters && (
-              <Button
-                variant="ghost"
-                onClick={clearFilters}
-                className="text-ocean-600"
-              >
-                <X className="w-4 h-4" />
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2 border-ocean-200"
+                  onClick={handleShare}
+                >
+                  {copied ? <Check className="w-4 h-4 text-green-500" /> : <Share2 className="w-4 h-4" />}
+                  <span className="hidden sm:inline">{copied ? '복사됨' : '공유'}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={clearFilters}
+                  className="text-ocean-600"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </>
             )}
           </div>
 
@@ -165,9 +189,9 @@ export default function ActivitiesPage() {
             {categories.map((category) => (
               <button
                 key={category.id}
-                onClick={() => setSelectedCategory(category.id)}
+                onClick={() => setFilter('category', category.id)}
                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                  selectedCategory === category.id
+                  filters.category === category.id
                     ? 'bg-ocean-500 text-white'
                     : 'bg-ocean-50 text-ocean-700 hover:bg-ocean-100'
                 }`}
@@ -175,7 +199,7 @@ export default function ActivitiesPage() {
                 <span>{category.icon}</span>
                 <span>{category.name}</span>
                 {category.id !== 'all' && (
-                  <span className={`text-xs ${selectedCategory === category.id ? 'text-ocean-200' : 'text-ocean-400'}`}>
+                  <span className={`text-xs ${filters.category === category.id ? 'text-ocean-200' : 'text-ocean-400'}`}>
                     {category.count}
                   </span>
                 )}
@@ -192,9 +216,9 @@ export default function ActivitiesPage() {
             {difficultyLevels.map((level) => (
               <button
                 key={level.id}
-                onClick={() => setSelectedDifficulty(level.id)}
+                onClick={() => setFilter('difficulty', level.id)}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                  selectedDifficulty === level.id
+                  filters.difficulty === level.id
                     ? 'bg-palm-500 text-white'
                     : 'bg-palm-50 text-palm-700 hover:bg-palm-100'
                 }`}
@@ -469,5 +493,18 @@ function ActivityCard({
         />
       </CardContent>
     </Card>
+  );
+}
+
+// Export with Suspense wrapper for useSearchParams
+export default function ActivitiesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-b from-ocean-50 via-white to-palm-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ocean-500" />
+      </div>
+    }>
+      <ActivitiesContent />
+    </Suspense>
   );
 }

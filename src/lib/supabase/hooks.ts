@@ -563,3 +563,231 @@ export function useAccommodationPurposeCounts() {
 
   return { counts, loading };
 }
+
+// ============ Global Search Hook ============
+
+export type SearchResultType = 'accommodation' | 'restaurant' | 'attraction' | 'activity' | 'shopping';
+
+export interface SearchResult {
+  id: string;
+  type: SearchResultType;
+  name: string;
+  nameKo: string;
+  description: string;
+  image: string;
+  rating: number;
+  category?: string;
+  area?: string;
+  price?: string;
+}
+
+export function useGlobalSearch(query: string) {
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function search() {
+      if (!query || query.length < 2) {
+        setResults([]);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const searchTerm = `%${query}%`;
+
+        // Search accommodations
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: accommodations, error: accError } = await (supabase as any)
+          .from('accommodations')
+          .select('id, name, name_ko, description, thumbnail, google_rating, area, area_name, price_range')
+          .eq('is_published', true)
+          .or(`name.ilike.${searchTerm},name_ko.ilike.${searchTerm},description.ilike.${searchTerm}`)
+          .limit(10);
+
+        if (accError) throw accError;
+
+        // Search places (all types)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: places, error: placesError } = await (supabase as any)
+          .from('places')
+          .select('id, type, name, name_ko, description, thumbnail, google_rating, category, price')
+          .eq('is_published', true)
+          .or(`name.ilike.${searchTerm},name_ko.ilike.${searchTerm},description.ilike.${searchTerm}`)
+          .limit(30);
+
+        if (placesError) throw placesError;
+
+        // Map accommodations
+        const accResults: SearchResult[] = (accommodations || []).map((acc: {
+          id: string;
+          name: string;
+          name_ko: string;
+          description: string;
+          thumbnail: string;
+          google_rating: number;
+          area: string;
+          area_name: string;
+          price_range: string;
+        }) => ({
+          id: acc.id,
+          type: 'accommodation' as SearchResultType,
+          name: acc.name,
+          nameKo: acc.name_ko,
+          description: acc.description || '',
+          image: acc.thumbnail || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400',
+          rating: acc.google_rating || 0,
+          area: acc.area_name,
+          price: acc.price_range,
+        }));
+
+        // Map places
+        const placeResults: SearchResult[] = (places || []).map((place: {
+          id: string;
+          type: PlaceType;
+          name: string;
+          name_ko: string;
+          description: string;
+          thumbnail: string;
+          google_rating: number;
+          category: string;
+          price: string;
+        }) => ({
+          id: place.id,
+          type: place.type as SearchResultType,
+          name: place.name,
+          nameKo: place.name_ko,
+          description: place.description || '',
+          image: place.thumbnail || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400',
+          rating: place.google_rating || 0,
+          category: place.category,
+          price: place.price,
+        }));
+
+        setResults([...accResults, ...placeResults]);
+      } catch (err) {
+        console.error('Search failed:', err);
+        setError(err instanceof Error ? err.message : 'Search failed');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    const debounce = setTimeout(search, 300);
+    return () => clearTimeout(debounce);
+  }, [query]);
+
+  return { results, loading, error };
+}
+
+// ============ Itinerary Items Hook ============
+// Fetch all items from Supabase for adding to itinerary
+
+export type ItineraryItemCategory = 'accommodation' | 'restaurant' | 'attraction' | 'activity' | 'shopping';
+
+export interface ItineraryAvailableItem {
+  id: string;
+  category: ItineraryItemCategory;
+  name: string;
+  nameKo: string;
+  image: string;
+  rating?: number;
+  duration?: string;
+  hours?: string;
+  price?: string;
+}
+
+export function useItineraryItems() {
+  const [items, setItems] = useState<ItineraryAvailableItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchAllItems() {
+      try {
+        setLoading(true);
+        const allItems: ItineraryAvailableItem[] = [];
+
+        // Fetch accommodations
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: accommodations, error: accError } = await (supabase as any)
+          .from('accommodations')
+          .select('id, name, name_ko, thumbnail, google_rating, price_min, price_max')
+          .eq('is_published', true)
+          .order('sort_order', { ascending: true });
+
+        if (accError) throw accError;
+
+        (accommodations || []).forEach((acc: {
+          id: string;
+          name: string;
+          name_ko: string;
+          thumbnail: string;
+          google_rating: number;
+          price_min: number;
+          price_max: number;
+        }) => {
+          allItems.push({
+            id: acc.id,
+            category: 'accommodation',
+            name: acc.name,
+            nameKo: acc.name_ko,
+            image: acc.thumbnail || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400',
+            rating: acc.google_rating || 0,
+            price: acc.price_min && acc.price_max
+              ? `${acc.price_min.toLocaleString()}~${acc.price_max.toLocaleString()}원`
+              : undefined,
+          });
+        });
+
+        // Fetch all places (restaurant, attraction, activity, shopping)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: places, error: placesError } = await (supabase as any)
+          .from('places')
+          .select('id, type, name, name_ko, thumbnail, google_rating, duration, hours, price')
+          .eq('is_published', true)
+          .order('sort_order', { ascending: true });
+
+        if (placesError) throw placesError;
+
+        (places || []).forEach((place: {
+          id: string;
+          type: PlaceType;
+          name: string;
+          name_ko: string;
+          thumbnail: string;
+          google_rating: number;
+          duration: string;
+          hours: string;
+          price: string;
+        }) => {
+          allItems.push({
+            id: place.id,
+            category: place.type as ItineraryItemCategory,
+            name: place.name,
+            nameKo: place.name_ko,
+            image: place.thumbnail || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400',
+            rating: place.google_rating || 0,
+            duration: place.duration || undefined,
+            hours: place.hours || undefined,
+            price: place.price || undefined,
+          });
+        });
+
+        setItems(allItems);
+      } catch (err) {
+        console.error('Failed to fetch itinerary items:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchAllItems();
+  }, []);
+
+  return { items, loading, error };
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,6 +14,8 @@ import {
   Heart,
   ArrowLeft,
   Sparkles,
+  Share2,
+  Check,
 } from 'lucide-react';
 import { MapLinkIcon, GoogleLinksButton } from '@/components/google-links';
 import { useAccommodations, useAccommodationAreaCounts, useAccommodationPurposeCounts, type AccommodationData } from '@/lib/supabase/hooks';
@@ -23,14 +25,27 @@ import {
   ACCOMMODATION_PRICE_RANGES,
   type AccommodationPurpose,
 } from '@/lib/supabase/types';
+import { useUrlFilters } from '@/lib/hooks/useUrlFilters';
 
-export default function AccommodationPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedArea, setSelectedArea] = useState('all');
-  const [selectedPurpose, setSelectedPurpose] = useState('all');
-  const [selectedPrice, setSelectedPrice] = useState('all');
+const defaultFilters = {
+  q: '',
+  area: 'all',
+  purpose: 'all',
+  price: 'all',
+};
+
+function AccommodationContent() {
+  const {
+    filters,
+    setFilter,
+    clearFilters,
+    hasActiveFilters,
+    copyShareableUrl,
+  } = useUrlFilters(defaultFilters);
+
   const [showFilters, setShowFilters] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [copied, setCopied] = useState(false);
 
   // Fetch from Supabase
   const { accommodations, loading, error } = useAccommodations();
@@ -57,37 +72,37 @@ export default function AccommodationPage() {
   const filteredAccommodations = useMemo(() => {
     return accommodations.filter((acc) => {
       // Area filter
-      if (selectedArea !== 'all' && acc.area !== selectedArea) {
+      if (filters.area !== 'all' && acc.area !== filters.area) {
         return false;
       }
 
       // Purpose filter
-      if (selectedPurpose !== 'all' && !acc.purposes.includes(selectedPurpose as AccommodationPurpose)) {
+      if (filters.purpose !== 'all' && !acc.purposes.includes(filters.purpose as AccommodationPurpose)) {
         return false;
       }
 
       // Price filter
-      if (selectedPrice !== 'all') {
-        const range = ACCOMMODATION_PRICE_RANGES.find(r => r.id === selectedPrice);
+      if (filters.price !== 'all') {
+        const range = ACCOMMODATION_PRICE_RANGES.find(r => r.id === filters.price);
         if (range && (acc.priceMin > range.max || acc.priceMax < range.min)) {
           return false;
         }
       }
 
       // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
+      if (filters.q) {
+        const query = filters.q.toLowerCase();
         return (
           acc.name.toLowerCase().includes(query) ||
           acc.nameKo.toLowerCase().includes(query) ||
-          acc.areaName.includes(searchQuery) ||
+          acc.areaName.includes(filters.q) ||
           acc.description.toLowerCase().includes(query)
         );
       }
 
       return true;
     });
-  }, [accommodations, searchQuery, selectedArea, selectedPurpose, selectedPrice]);
+  }, [accommodations, filters]);
 
   const toggleFavorite = (id: string) => {
     setFavorites((prev) =>
@@ -95,15 +110,13 @@ export default function AccommodationPage() {
     );
   };
 
-  const clearFilters = () => {
-    setSearchQuery('');
-    setSelectedArea('all');
-    setSelectedPurpose('all');
-    setSelectedPrice('all');
+  const handleShare = async () => {
+    const success = await copyShareableUrl();
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
-
-  const hasActiveFilters =
-    searchQuery || selectedArea !== 'all' || selectedPurpose !== 'all' || selectedPrice !== 'all';
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('ko-KR').format(price);
@@ -159,8 +172,8 @@ export default function AccommodationPage() {
               <input
                 type="text"
                 placeholder="호텔명, 지역으로 검색..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={filters.q}
+                onChange={(e) => setFilter('q', e.target.value)}
                 className="w-full pl-10 pr-4 py-3 rounded-xl border border-ocean-200 focus:border-ocean-500 focus:ring-2 focus:ring-ocean-500/20 outline-none transition-all"
               />
             </div>
@@ -175,6 +188,16 @@ export default function AccommodationPage() {
                 <span className="w-2 h-2 rounded-full bg-sunset-500" />
               )}
             </Button>
+            {hasActiveFilters && (
+              <Button
+                variant="outline"
+                className="flex items-center gap-2 border-ocean-200"
+                onClick={handleShare}
+              >
+                {copied ? <Check className="w-4 h-4 text-green-500" /> : <Share2 className="w-4 h-4" />}
+                <span className="hidden sm:inline">{copied ? '복사됨' : '공유'}</span>
+              </Button>
+            )}
           </div>
 
           {/* Quick Filters - Area Pills */}
@@ -182,16 +205,16 @@ export default function AccommodationPage() {
             {areasWithCounts.map((area) => (
               <button
                 key={area.id}
-                onClick={() => setSelectedArea(area.id)}
+                onClick={() => setFilter('area', area.id)}
                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                  selectedArea === area.id
+                  filters.area === area.id
                     ? 'bg-ocean-500 text-white'
                     : 'bg-ocean-50 text-ocean-700 hover:bg-ocean-100'
                 }`}
               >
                 <span>{area.name}</span>
                 {area.id !== 'all' && (
-                  <span className={`text-xs ${selectedArea === area.id ? 'text-ocean-200' : 'text-ocean-400'}`}>
+                  <span className={`text-xs ${filters.area === area.id ? 'text-ocean-200' : 'text-ocean-400'}`}>
                     {area.count}
                   </span>
                 )}
@@ -212,16 +235,16 @@ export default function AccommodationPage() {
                     {purposesWithCounts.map((purpose) => (
                       <button
                         key={purpose.id}
-                        onClick={() => setSelectedPurpose(purpose.id)}
+                        onClick={() => setFilter('purpose', purpose.id)}
                         className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
-                          selectedPurpose === purpose.id
+                          filters.purpose === purpose.id
                             ? 'bg-sunset-500 text-white'
                             : 'bg-sunset-50 text-sunset-700 hover:bg-sunset-100'
                         }`}
                       >
                         {purpose.icon} {purpose.name}
                         {purpose.id !== 'all' && (
-                          <span className={`ml-1 text-xs ${selectedPurpose === purpose.id ? 'text-sunset-200' : 'text-sunset-400'}`}>
+                          <span className={`ml-1 text-xs ${filters.purpose === purpose.id ? 'text-sunset-200' : 'text-sunset-400'}`}>
                             ({purpose.count})
                           </span>
                         )}
@@ -239,9 +262,9 @@ export default function AccommodationPage() {
                     {ACCOMMODATION_PRICE_RANGES.map((range) => (
                       <button
                         key={range.id}
-                        onClick={() => setSelectedPrice(range.id)}
+                        onClick={() => setFilter('price', range.id)}
                         className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
-                          selectedPrice === range.id
+                          filters.price === range.id
                             ? 'bg-palm-500 text-white'
                             : 'bg-palm-50 text-palm-700 hover:bg-palm-100'
                         }`}
@@ -483,5 +506,18 @@ function AccommodationCard({
         />
       </CardContent>
     </Card>
+  );
+}
+
+// Export with Suspense wrapper for useSearchParams
+export default function AccommodationPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-b from-ocean-50 via-white to-palm-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ocean-500" />
+      </div>
+    }>
+      <AccommodationContent />
+    </Suspense>
   );
 }

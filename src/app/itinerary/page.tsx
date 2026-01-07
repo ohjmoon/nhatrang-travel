@@ -30,6 +30,8 @@ import {
   Navigation,
   ArrowDown,
   Map,
+  Check,
+  Link2,
 } from 'lucide-react';
 import { GoogleMapsProvider, ItineraryMap } from '@/components/google-maps';
 import { SaveItineraryModal } from '@/components/itinerary';
@@ -38,16 +40,18 @@ import {
   type Itinerary,
   type ItineraryDay,
   type ItineraryItem,
-  type AvailableItem,
   type ItemCategory,
   categoryInfo,
-  getAllAvailableItems,
   createItinerary,
   addItemToDay,
   removeItemFromDay,
   formatDate,
   timeSlots,
 } from '@/data/itinerary';
+import {
+  useItineraryItems,
+  type ItineraryAvailableItem,
+} from '@/lib/supabase/hooks';
 import {
   type TravelMode,
   type TravelTimeResult,
@@ -102,9 +106,21 @@ export default function ItineraryPage() {
     setShowCreateForm(false);
   };
 
-  const handleAddItem = (item: AvailableItem, time: string, notes?: string) => {
+  const handleAddItem = (item: ItineraryAvailableItem, time: string, notes?: string) => {
     if (!itinerary || !selectedDayId) return;
-    const updated = addItemToDay(itinerary, selectedDayId, item, time, notes);
+    // Convert ItineraryAvailableItem to AvailableItem format
+    const availableItem = {
+      id: item.id,
+      category: item.category as ItemCategory,
+      name: item.name,
+      nameKo: item.nameKo,
+      image: item.image,
+      rating: item.rating,
+      duration: item.duration,
+      hours: item.hours,
+      price: item.price,
+    };
+    const updated = addItemToDay(itinerary, selectedDayId, availableItem, time, notes);
     setItinerary(updated);
     setShowAddModal(false);
     setSelectedDayId(null);
@@ -133,6 +149,8 @@ export default function ItineraryPage() {
 
   // State for save modal
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [savedItineraryId, setSavedItineraryId] = useState<string | null>(null);
+  const [showShareCopied, setShowShareCopied] = useState(false);
   const { saveItinerary, loading: saveLoading } = useSaveItinerary();
 
   const handleSaveItinerary = async (
@@ -143,9 +161,38 @@ export default function ItineraryPage() {
 
     try {
       const result = await saveItinerary(itinerary, password, description);
+      if (result) {
+        setSavedItineraryId(result.id);
+      }
       return !!result;
     } catch {
       return false;
+    }
+  };
+
+  const handleShareItinerary = async () => {
+    if (!savedItineraryId) {
+      // If not saved yet, show save modal first
+      setShowSaveModal(true);
+      return;
+    }
+
+    // Copy share URL to clipboard
+    const shareUrl = `${window.location.origin}/itineraries/${savedItineraryId}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShowShareCopied(true);
+      setTimeout(() => setShowShareCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = shareUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setShowShareCopied(true);
+      setTimeout(() => setShowShareCopied(false), 2000);
     }
   };
 
@@ -292,6 +339,24 @@ export default function ItineraryPage() {
               >
                 <Download className="w-4 h-4" />
                 저장하기
+              </Button>
+              <Button
+                variant={showShareCopied ? "palm" : "outline"}
+                size="sm"
+                className="gap-2"
+                onClick={handleShareItinerary}
+              >
+                {showShareCopied ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    복사됨!
+                  </>
+                ) : (
+                  <>
+                    <Link2 className="w-4 h-4" />
+                    {savedItineraryId ? '공유하기' : '저장 후 공유'}
+                  </>
+                )}
               </Button>
             </div>
 
@@ -660,15 +725,16 @@ function AddItemModal({
   onAdd,
 }: {
   onClose: () => void;
-  onAdd: (item: AvailableItem, time: string, notes?: string) => void;
+  onAdd: (item: ItineraryAvailableItem, time: string, notes?: string) => void;
 }) {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ItemCategory | 'all'>('all');
-  const [selectedItem, setSelectedItem] = useState<AvailableItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<ItineraryAvailableItem | null>(null);
   const [selectedTime, setSelectedTime] = useState('09:00');
   const [notes, setNotes] = useState('');
 
-  const allItems = useMemo(() => getAllAvailableItems(), []);
+  // Fetch items from Supabase
+  const { items: allItems, loading: itemsLoading } = useItineraryItems();
 
   const filteredItems = useMemo(() => {
     return allItems.filter((item) => {
@@ -717,20 +783,22 @@ function AddItemModal({
               />
               <div>
                 <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium mb-1 ${
-                  categoryInfo[selectedItem.category].color === 'ocean'
+                  categoryInfo[selectedItem.category as ItemCategory].color === 'ocean'
                     ? 'bg-ocean-100 text-ocean-700'
-                    : categoryInfo[selectedItem.category].color === 'sunset'
+                    : categoryInfo[selectedItem.category as ItemCategory].color === 'sunset'
                     ? 'bg-sunset-100 text-sunset-700'
                     : 'bg-palm-100 text-palm-700'
                 }`}>
-                  {categoryInfo[selectedItem.category].icon} {categoryInfo[selectedItem.category].name}
+                  {categoryInfo[selectedItem.category as ItemCategory].icon} {categoryInfo[selectedItem.category as ItemCategory].name}
                 </span>
                 <h4 className="font-bold text-lg text-gray-800">{selectedItem.nameKo}</h4>
                 <p className="text-sm text-gray-500">{selectedItem.name}</p>
-                <div className="flex items-center gap-1 mt-1">
-                  <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                  <span className="text-sm font-medium">{selectedItem.rating}</span>
-                </div>
+                {selectedItem.rating !== undefined && selectedItem.rating > 0 && (
+                  <div className="flex items-center gap-1 mt-1">
+                    <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                    <span className="text-sm font-medium">{selectedItem.rating}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -829,43 +897,53 @@ function AddItemModal({
 
             {/* Items Grid */}
             <div className="flex-1 overflow-y-auto p-4">
-              <p className="text-sm text-gray-500 mb-3">
-                {filteredItems.length}개의 장소
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {filteredItems.map((item) => (
-                  <button
-                    key={`${item.category}-${item.id}`}
-                    onClick={() => setSelectedItem(item)}
-                    className="flex gap-3 p-3 rounded-xl border border-gray-200 hover:border-ocean-300 hover:bg-ocean-50 transition-all text-left"
-                  >
-                    <img
-                      src={item.image}
-                      alt={item.nameKo}
-                      className="w-16 h-16 rounded-lg object-cover"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium mb-0.5 ${
-                        categoryInfo[item.category].color === 'ocean'
-                          ? 'bg-ocean-100 text-ocean-700'
-                          : categoryInfo[item.category].color === 'sunset'
-                          ? 'bg-sunset-100 text-sunset-700'
-                          : 'bg-palm-100 text-palm-700'
-                      }`}>
-                        {categoryInfo[item.category].icon}
-                      </span>
-                      <h4 className="font-medium text-gray-800 truncate">
-                        {item.nameKo}
-                      </h4>
-                      <p className="text-xs text-gray-500 truncate">{item.name}</p>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <Star className="w-3 h-3 text-yellow-500 fill-current" />
-                        <span className="text-xs font-medium">{item.rating}</span>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
+              {itemsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ocean-500" />
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-500 mb-3">
+                    {filteredItems.length}개의 장소
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {filteredItems.map((item) => (
+                      <button
+                        key={`${item.category}-${item.id}`}
+                        onClick={() => setSelectedItem(item)}
+                        className="flex gap-3 p-3 rounded-xl border border-gray-200 hover:border-ocean-300 hover:bg-ocean-50 transition-all text-left"
+                      >
+                        <img
+                          src={item.image}
+                          alt={item.nameKo}
+                          className="w-16 h-16 rounded-lg object-cover"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium mb-0.5 ${
+                            categoryInfo[item.category as ItemCategory].color === 'ocean'
+                              ? 'bg-ocean-100 text-ocean-700'
+                              : categoryInfo[item.category as ItemCategory].color === 'sunset'
+                              ? 'bg-sunset-100 text-sunset-700'
+                              : 'bg-palm-100 text-palm-700'
+                          }`}>
+                            {categoryInfo[item.category as ItemCategory].icon}
+                          </span>
+                          <h4 className="font-medium text-gray-800 truncate">
+                            {item.nameKo}
+                          </h4>
+                          <p className="text-xs text-gray-500 truncate">{item.name}</p>
+                          {item.rating !== undefined && item.rating > 0 && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Star className="w-3 h-3 text-yellow-500 fill-current" />
+                              <span className="text-xs font-medium">{item.rating}</span>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </>
         )}

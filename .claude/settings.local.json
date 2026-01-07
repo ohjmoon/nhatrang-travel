@@ -34,7 +34,9 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:nhatrang-travel.vercel.app)",
       "Bash(npx tsc:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "mcp__puppeteer__puppeteer_navigate",
+      "mcp__puppeteer__puppeteer_screenshot"
     ]
   }
 }
