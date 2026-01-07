@@ -698,6 +698,7 @@ export interface ItineraryAvailableItem {
   duration?: string;
   hours?: string;
   price?: string;
+  coordinates?: { lat: number; lng: number } | null;
 }
 
 export function useItineraryItems() {
@@ -715,7 +716,7 @@ export function useItineraryItems() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: accommodations, error: accError } = await (supabase as any)
           .from('accommodations')
-          .select('id, name, name_ko, thumbnail, google_rating, price_min, price_max')
+          .select('id, name, name_ko, thumbnail, google_rating, price_min, price_max, latitude, longitude')
           .eq('is_published', true)
           .order('sort_order', { ascending: true });
 
@@ -729,6 +730,8 @@ export function useItineraryItems() {
           google_rating: number;
           price_min: number;
           price_max: number;
+          latitude: number | null;
+          longitude: number | null;
         }) => {
           allItems.push({
             id: acc.id,
@@ -740,6 +743,9 @@ export function useItineraryItems() {
             price: acc.price_min && acc.price_max
               ? `${acc.price_min.toLocaleString()}~${acc.price_max.toLocaleString()}원`
               : undefined,
+            coordinates: acc.latitude && acc.longitude
+              ? { lat: acc.latitude, lng: acc.longitude }
+              : null,
           });
         });
 
@@ -747,7 +753,7 @@ export function useItineraryItems() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: places, error: placesError } = await (supabase as any)
           .from('places')
-          .select('id, type, name, name_ko, thumbnail, google_rating, duration, hours, price')
+          .select('id, type, name, name_ko, thumbnail, google_rating, duration, hours, price, coordinates')
           .eq('is_published', true)
           .order('sort_order', { ascending: true });
 
@@ -763,6 +769,7 @@ export function useItineraryItems() {
           duration: string;
           hours: string;
           price: string;
+          coordinates: { lat: number; lng: number } | null;
         }) => {
           allItems.push({
             id: place.id,
@@ -774,6 +781,7 @@ export function useItineraryItems() {
             duration: place.duration || undefined,
             hours: place.hours || undefined,
             price: place.price || undefined,
+            coordinates: place.coordinates || null,
           });
         });
 

@@ -17,6 +17,7 @@ export interface ItineraryItem {
   time: string;
   duration?: string;
   notes?: string;
+  coordinates?: { lat: number; lng: number } | null;
 }
 
 export interface ItineraryDay {
@@ -56,6 +57,7 @@ export interface AvailableItem {
   duration?: string;
   hours?: string;
   price?: string;
+  coordinates?: { lat: number; lng: number } | null;
 }
 
 export function getAllAvailableItems(): AvailableItem[] {
@@ -188,6 +190,7 @@ export function addItemToDay(
       time,
       duration: item.duration,
       notes,
+      coordinates: item.coordinates || null,
     };
 
     newItinerary.days[dayIndex].items.push(newItem);

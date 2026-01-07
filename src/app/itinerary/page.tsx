@@ -119,6 +119,7 @@ export default function ItineraryPage() {
       duration: item.duration,
       hours: item.hours,
       price: item.price,
+      coordinates: item.coordinates || null,
     };
     const updated = addItemToDay(itinerary, selectedDayId, availableItem, time, notes);
     setItinerary(updated);

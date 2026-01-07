@@ -32,10 +32,11 @@ export function ItineraryMap({ items, className = '' }: ItineraryMapProps) {
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
 
-  // Get coordinates for each item
+  // Get coordinates for each item - use item's coordinates directly, fallback to static mapping
   const itemsWithCoords = useMemo(() => {
     return items.map((item) => {
-      const coords = getCoordinates(item.itemId);
+      // Use coordinates from item if available, otherwise fallback to static mapping
+      const coords = item.coordinates || getCoordinates(item.itemId);
       return { ...item, coords };
     }).filter((item) => item.coords !== null);
   }, [items]);
