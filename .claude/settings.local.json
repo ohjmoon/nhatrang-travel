@@ -41,7 +41,9 @@
       "mcp__puppeteer__puppeteer_click",
       "mcp__puppeteer__puppeteer_evaluate",
       "mcp__postgres__query",
-      "mcp__puppeteer__puppeteer_fill"
+      "mcp__puppeteer__puppeteer_fill",
+      "Bash(cd:*)",
+      "Bash(timeout /t 60 /nobreak)"
     ]
   }
 }

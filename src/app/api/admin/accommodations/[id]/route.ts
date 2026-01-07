@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/client';
 
-// Force dynamic rendering
+// Force dynamic rendering for admin API routes
 export const dynamic = 'force-dynamic';
 
 // PATCH - Update accommodation (publish status, etc.)
