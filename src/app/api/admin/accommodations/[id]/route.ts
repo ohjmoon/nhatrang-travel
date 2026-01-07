@@ -7,10 +7,10 @@ export const dynamic = 'force-dynamic';
 // PATCH - Update accommodation (publish status, etc.)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id;
+    const { id } = await params;
     const body = await request.json();
 
     const supabase = createAdminClient();
@@ -43,10 +43,10 @@ export async function PATCH(
 // DELETE - Delete accommodation
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id;
+    const { id } = await params;
 
     const supabase = createAdminClient();
 
@@ -76,10 +76,10 @@ export async function DELETE(
 // PUT - Full update accommodation
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id;
+    const { id } = await params;
     const body = await request.json();
 
     const supabase = createAdminClient();
