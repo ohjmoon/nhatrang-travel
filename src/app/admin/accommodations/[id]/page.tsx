@@ -156,6 +156,132 @@ export default function AccommodationEditPage() {
     return '$$$$';                         // Very Expensive
   }
 
+  // 가격대 기반 목적 추론
+  function inferPurposes(priceRange: AccommodationPriceRange | '', types?: string[]): AccommodationPurpose[] {
+    const purposes: AccommodationPurpose[] = [];
+
+    // 가격대 기반 추론
+    if (priceRange === '$$$$' || priceRange === '$$$') {
+      purposes.push('couple');  // 고급 리조트 → 커플/허니문
+    }
+    if (priceRange === '$' || priceRange === '$$') {
+      purposes.push('budget');  // 저렴한 곳 → 가성비
+    }
+
+    // Google types 기반 추론
+    if (types) {
+      const typesStr = types.join(' ').toLowerCase();
+      if (typesStr.includes('resort') || typesStr.includes('spa')) {
+        if (!purposes.includes('couple')) purposes.push('couple');
+      }
+      if (typesStr.includes('apartment') || typesStr.includes('residence')) {
+        purposes.push('residence');
+      }
+    }
+
+    // 기본값: 가족
+    if (purposes.length === 0) {
+      purposes.push('family');
+    }
+
+    return purposes;
+  }
+
+  // Google types를 편의시설로 변환
+  function extractAmenities(types?: string[]): string[] {
+    if (!types) return [];
+
+    const amenityMap: Record<string, string> = {
+      'spa': '스파',
+      'gym': '피트니스',
+      'restaurant': '레스토랑',
+      'bar': '바/라운지',
+      'swimming_pool': '수영장',
+      'parking': '주차장',
+      'wifi': '무료 와이파이',
+      'beach': '프라이빗 비치',
+      'casino': '카지노',
+      'golf_course': '골프장',
+    };
+
+    const amenities: string[] = [];
+    const typesStr = types.join(' ').toLowerCase();
+
+    // 리조트/호텔 기본 편의시설 추가
+    if (typesStr.includes('resort') || typesStr.includes('lodging')) {
+      amenities.push('수영장', '레스토랑');
+    }
+    if (typesStr.includes('spa')) {
+      amenities.push('스파');
+    }
+
+    // types에서 매칭되는 편의시설 추가
+    for (const [key, value] of Object.entries(amenityMap)) {
+      if (typesStr.includes(key) && !amenities.includes(value)) {
+        amenities.push(value);
+      }
+    }
+
+    return amenities;
+  }
+
+  // 영문 이름을 한글로 음역 (간단한 규칙 기반)
+  function transliterateToKorean(englishName: string): string {
+    // 일반적인 호텔/리조트 이름 매핑
+    const commonWords: Record<string, string> = {
+      'resort': '리조트',
+      'hotel': '호텔',
+      'villa': '빌라',
+      'residence': '레지던스',
+      'beach': '비치',
+      'bay': '베이',
+      'spa': '스파',
+      'palace': '팰리스',
+      'grand': '그랜드',
+      'royal': '로얄',
+      'premier': '프리미어',
+      'luxury': '럭셔리',
+      'boutique': '부티크',
+      'intercontinental': '인터컨티넨탈',
+      'sheraton': '쉐라톤',
+      'marriott': '메리어트',
+      'hilton': '힐튼',
+      'hyatt': '하얏트',
+      'sofitel': '소피텔',
+      'novotel': '노보텔',
+      'movenpick': '뫼벤픽',
+      'melia': '멜리아',
+      'vinpearl': '빈펄',
+      'alma': '알마',
+      'amiana': '아미아나',
+      'mia': '미아',
+      'fusion': '퓨전',
+      'six senses': '식스센스',
+      'anam': '아남',
+      'evason': '에바손',
+      'ana': '아나',
+      'mandara': '만다라',
+      'terracotta': '테라코타',
+      'cam ranh': '깜란',
+      'nha trang': '나트랑',
+      'ninh van': '닌반',
+    };
+
+    let koreanName = englishName.toLowerCase();
+
+    // 알려진 단어 변환
+    for (const [eng, kor] of Object.entries(commonWords)) {
+      koreanName = koreanName.replace(new RegExp(eng, 'gi'), kor);
+    }
+
+    // 남은 영문은 그대로 유지 (사용자가 수정)
+    // 첫 글자 대문자화된 형태로 반환
+    return koreanName
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
+
   // Google Places 검색 결과 선택 시 자동 입력
   async function handleGooglePlaceSelect(place: PlaceDetails) {
     const lat = place.geometry?.location?.lat;
@@ -171,13 +297,22 @@ export default function AccommodationEditPage() {
     const englishName = place.name.replace(/[가-힣]/g, '').trim() || place.name;
     const slug = generateSlug(englishName);
 
+    // 한글 이름 자동 생성 (음역)
+    const koreanName = transliterateToKorean(place.name);
+
+    // 목적 추론
+    const purposes = inferPurposes(priceRange, place.types);
+
+    // 편의시설 추출
+    const amenities = extractAmenities(place.types);
+
     // 주소에서 설명 생성
     const description = place.formatted_address || '';
 
     setFormData((prev) => ({
       ...prev,
       name: place.name,
-      name_ko: prev.name_ko || '',  // 한글명은 직접 입력 필요
+      name_ko: prev.name_ko || koreanName,  // 한글명 자동 생성
       slug: slug,
       description: prev.description || description,
       phone: place.formatted_phone_number || '',
@@ -190,6 +325,10 @@ export default function AccommodationEditPage() {
       area_name: detectedArea?.area_name || prev.area_name,
       // 가격대 자동 설정
       price_range: priceRange || prev.price_range,
+      // 목적 자동 설정
+      purposes: prev.purposes.length > 0 ? prev.purposes : purposes,
+      // 편의시설 자동 설정
+      amenities: prev.amenities.length > 0 ? prev.amenities : amenities,
       // 평점 및 리뷰 자동 설정
       rating: place.rating || prev.rating,
       review_count: place.user_ratings_total || prev.review_count,

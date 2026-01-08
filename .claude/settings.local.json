@@ -43,7 +43,8 @@
       "mcp__postgres__query",
       "mcp__puppeteer__puppeteer_fill",
       "Bash(cd:*)",
-      "Bash(timeout /t 60 /nobreak)"
+      "Bash(timeout /t 60 /nobreak)",
+      "Bash(claude doctor:*)"
     ]
   }
 }
