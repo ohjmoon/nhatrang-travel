@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,8 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  X,
+  ZoomIn,
 } from 'lucide-react';
 import { MapLinkIcon, GoogleLinksButton } from '@/components/google-links';
 import { supabase } from '@/lib/supabase/client';
@@ -43,11 +45,34 @@ export default function AccommodationDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const imageGalleryRef = useRef<HTMLDivElement>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
     fetchAccommodation();
   }, [slug]);
+
+  // 키보드 네비게이션 (ESC, 좌우 화살표)
+  useEffect(() => {
+    if (!lightboxOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setLightboxOpen(false);
+      } else if (e.key === 'ArrowLeft') {
+        setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+      } else if (e.key === 'ArrowRight') {
+        setCurrentImageIndex((prev) => (prev + 1) % images.length);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden'; // 스크롤 방지
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'unset';
+    };
+  }, [lightboxOpen, images.length]);
 
   async function fetchAccommodation() {
     try {
@@ -101,17 +126,17 @@ export default function AccommodationDetailPage() {
     return purpose ? `${purpose.icon} ${purpose.name}` : purposeId;
   };
 
-  const nextImage = () => {
+  const nextImage = useCallback(() => {
     setCurrentImageIndex((prev) => (prev + 1) % images.length);
-  };
+  }, [images.length]);
 
-  const prevImage = () => {
+  const prevImage = useCallback(() => {
     setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
-  };
+  }, [images.length]);
 
-  const selectImageAndScroll = (index: number) => {
+  const openLightbox = (index: number) => {
     setCurrentImageIndex(index);
-    imageGalleryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setLightboxOpen(true);
   };
 
   if (loading) {
@@ -145,6 +170,78 @@ export default function AccommodationDetailPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-ocean-50 via-white to-palm-50">
+      {/* Lightbox Modal */}
+      {lightboxOpen && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center"
+          onClick={() => setLightboxOpen(false)}
+        >
+          {/* Close Button */}
+          <button
+            onClick={() => setLightboxOpen(false)}
+            className="absolute top-4 right-4 z-10 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all"
+          >
+            <X className="w-6 h-6 text-white" />
+          </button>
+
+          {/* Image Counter */}
+          <div className="absolute top-4 left-4 text-white/80 text-sm font-medium">
+            {currentImageIndex + 1} / {images.length}
+          </div>
+
+          {/* Main Image */}
+          <div
+            className="relative max-w-[90vw] max-h-[85vh] flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={images[currentImageIndex]?.url}
+              alt={images[currentImageIndex]?.alt || accommodation.name_ko}
+              className="max-w-full max-h-[85vh] object-contain rounded-lg"
+            />
+          </div>
+
+          {/* Navigation Arrows */}
+          {images.length > 1 && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); prevImage(); }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all"
+              >
+                <ChevronLeft className="w-8 h-8 text-white" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); nextImage(); }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all"
+              >
+                <ChevronRight className="w-8 h-8 text-white" />
+              </button>
+            </>
+          )}
+
+          {/* Thumbnail Strip */}
+          {images.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 max-w-[90vw] overflow-x-auto p-2">
+              {images.map((img, idx) => (
+                <button
+                  key={img.id}
+                  onClick={(e) => { e.stopPropagation(); setCurrentImageIndex(idx); }}
+                  className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                    idx === currentImageIndex ? 'border-white opacity-100' : 'border-transparent opacity-50 hover:opacity-75'
+                  }`}
+                >
+                  <img
+                    src={img.url}
+                    alt={img.alt || ''}
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-ocean-100">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -163,15 +260,23 @@ export default function AccommodationDetailPage() {
       </nav>
 
       {/* Hero Image Gallery */}
-      <div ref={imageGalleryRef} className="pt-16 relative">
+      <div className="pt-16 relative">
         <div className="relative h-[50vh] md:h-[60vh] overflow-hidden bg-ocean-100">
           {images.length > 0 ? (
             <>
               <img
                 src={images[currentImageIndex]?.url}
                 alt={images[currentImageIndex]?.alt || accommodation.name_ko}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover cursor-pointer"
+                onClick={() => openLightbox(currentImageIndex)}
               />
+              {/* Zoom indicator */}
+              <button
+                onClick={() => openLightbox(currentImageIndex)}
+                className="absolute bottom-20 right-4 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-all"
+              >
+                <ZoomIn className="w-5 h-5 text-white" />
+              </button>
               {images.length > 1 && (
                 <>
                   <button
@@ -205,7 +310,7 @@ export default function AccommodationDetailPage() {
               <span className="text-ocean-400">이미지 없음</span>
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
 
           {/* Action Buttons */}
           <div className="absolute top-4 right-4 flex gap-2">
@@ -394,13 +499,15 @@ export default function AccommodationDetailPage() {
             {images.length > 1 && (
               <Card>
                 <CardContent className="p-4">
-                  <h3 className="font-semibold text-ocean-800 mb-3">갤러리</h3>
+                  <h3 className="font-semibold text-ocean-800 mb-3">
+                    갤러리 ({images.length}장)
+                  </h3>
                   <div className="grid grid-cols-3 gap-2">
                     {images.slice(0, 6).map((img, idx) => (
                       <button
                         key={img.id}
-                        onClick={() => selectImageAndScroll(idx)}
-                        className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                        onClick={() => openLightbox(idx)}
+                        className={`aspect-square rounded-lg overflow-hidden border-2 transition-all hover:opacity-80 ${
                           idx === currentImageIndex ? 'border-ocean-500' : 'border-transparent'
                         }`}
                       >
@@ -412,6 +519,14 @@ export default function AccommodationDetailPage() {
                       </button>
                     ))}
                   </div>
+                  {images.length > 6 && (
+                    <button
+                      onClick={() => openLightbox(0)}
+                      className="w-full mt-2 py-2 text-sm text-ocean-600 hover:text-ocean-800 font-medium"
+                    >
+                      +{images.length - 6}장 더 보기
+                    </button>
+                  )}
                 </CardContent>
               </Card>
             )}
