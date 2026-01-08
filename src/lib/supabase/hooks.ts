@@ -417,6 +417,7 @@ export function useShoppingCategoryCounts() {
 
 export interface AccommodationData {
   id: string;
+  slug: string;
   name: string;
   nameKo: string;
   area: AccommodationArea;
@@ -439,6 +440,7 @@ export interface AccommodationData {
 function mapAccommodationToData(acc: Accommodation): AccommodationData {
   return {
     id: acc.id,
+    slug: acc.slug,
     name: acc.name,
     nameKo: acc.name_ko,
     area: acc.area,

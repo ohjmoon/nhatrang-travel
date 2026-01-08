@@ -389,7 +389,8 @@ function AccommodationCard({
   purposes: { id: string; name: string; icon: string; count: number }[];
 }) {
   return (
-    <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+    <Link href={`/accommodation/${accommodation.slug}`}>
+    <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer">
       {/* Image */}
       <div className="relative h-48 overflow-hidden">
         <img
@@ -506,6 +507,7 @@ function AccommodationCard({
         />
       </CardContent>
     </Card>
+    </Link>
   );
 }
 
