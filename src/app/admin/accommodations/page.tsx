@@ -50,7 +50,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { supabase } from '@/lib/supabase/client';
 import {
   Accommodation,
   AccommodationArea,
@@ -81,33 +80,24 @@ function AccommodationsContent() {
 
   useEffect(() => {
     fetchAccommodations();
-    fetchAreaCounts();
-    fetchStatusCounts();
+    fetchCounts();
   }, [areaFilter, statusFilter]);
 
   async function fetchAccommodations() {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let query = (supabase as any)
-        .from('accommodations')
-        .select('*')
-        .order('area')
-        .order('sort_order');
+      // Admin API를 사용하여 비공개 포함 전체 조회 (RLS 우회)
+      const params = new URLSearchParams();
+      if (areaFilter) params.set('area', areaFilter);
+      if (statusFilter) params.set('status', statusFilter);
 
-      if (areaFilter) {
-        query = query.eq('area', areaFilter);
+      const response = await fetch(`/api/admin/accommodations/list?${params.toString()}`);
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch');
       }
 
-      if (statusFilter === 'published') {
-        query = query.eq('is_published', true);
-      } else if (statusFilter === 'unpublished') {
-        query = query.eq('is_published', false);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      setAccommodations((data as Accommodation[]) || []);
+      setAccommodations((result.data as Accommodation[]) || []);
     } catch (err) {
       console.error('Failed to fetch accommodations:', err);
     } finally {
@@ -115,46 +105,20 @@ function AccommodationsContent() {
     }
   }
 
-  async function fetchAreaCounts() {
+  async function fetchCounts() {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
-        .from('accommodations')
-        .select('area');
+      // Admin API로 카운트 조회 (RLS 우회)
+      const response = await fetch('/api/admin/accommodations/list?counts=true');
+      const result = await response.json();
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch counts');
+      }
 
-      const counts: Record<string, number> = {};
-      (data || []).forEach((acc: { area: string }) => {
-        counts[acc.area] = (counts[acc.area] || 0) + 1;
-      });
-      setAreaCounts(counts);
+      setAreaCounts(result.areaCounts || {});
+      setStatusCounts(result.statusCounts || { published: 0, unpublished: 0 });
     } catch (err) {
-      console.error('Failed to fetch area counts:', err);
-    }
-  }
-
-  async function fetchStatusCounts() {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
-        .from('accommodations')
-        .select('is_published');
-
-      if (error) throw error;
-
-      let published = 0;
-      let unpublished = 0;
-      (data || []).forEach((acc: { is_published: boolean }) => {
-        if (acc.is_published) {
-          published++;
-        } else {
-          unpublished++;
-        }
-      });
-      setStatusCounts({ published, unpublished });
-    } catch (err) {
-      console.error('Failed to fetch status counts:', err);
+      console.error('Failed to fetch counts:', err);
     }
   }
 
@@ -191,7 +155,7 @@ function AccommodationsContent() {
 
       setDeleteId(null);
       fetchAccommodations();
-      fetchAreaCounts();
+      fetchCounts();
     } catch (err) {
       console.error('Failed to delete accommodation:', err);
       alert('삭제에 실패했습니다: ' + (err instanceof Error ? err.message : '알 수 없는 오류'));
