@@ -128,9 +128,11 @@ function ShoppingContent() {
             <Link href="/activities" className="text-ocean-700 hover:text-ocean-500 transition-colors">액티비티</Link>
             <Link href="/shopping" className="text-sunset-500 font-medium">쇼핑</Link>
           </div>
-          <Button variant="ocean" size="sm">
-            일정 만들기
-          </Button>
+          <Link href="/itinerary">
+            <Button variant="ocean" size="sm">
+              일정 만들기
+            </Button>
+          </Link>
         </div>
       </nav>
 

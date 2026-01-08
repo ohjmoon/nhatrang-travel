@@ -142,7 +142,7 @@ export default async function Home() {
       description: "나만의 완벽한 여행 일정 만들기",
       count: "NEW",
       color: "palm",
-      href: "/planner"
+      href: "/itinerary"
     },
   ]
 
@@ -163,7 +163,7 @@ export default async function Home() {
             <Link href="/attractions" className="text-ocean-700 hover:text-ocean-500 transition-colors">볼거리</Link>
             <Link href="/activities" className="text-ocean-700 hover:text-ocean-500 transition-colors">액티비티</Link>
           </div>
-          <Link href="/planner">
+          <Link href="/itinerary">
             <Button variant="ocean" size="sm">
               일정 만들기
             </Button>
@@ -203,7 +203,7 @@ export default async function Home() {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/planner">
+              <Link href="/itinerary">
                 <Button variant="ocean" size="xl" className="group">
                   여행 일정 만들기
                   <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
