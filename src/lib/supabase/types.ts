@@ -65,6 +65,21 @@ export interface PlaceImage {
   is_thumbnail: boolean;
 }
 
+export interface AccommodationImage {
+  id: string;
+  created_at: string;
+  accommodation_id: string;
+  url: string;
+  alt: string | null;
+  sort_order: number;
+  is_thumbnail: boolean;
+}
+
+export type AccommodationImageInsert = Omit<AccommodationImage, 'id' | 'created_at'> & {
+  id?: string;
+  created_at?: string;
+};
+
 // Accommodation row type
 export interface Accommodation {
   id: string;
@@ -137,6 +152,10 @@ export type PlaceUpdate = Partial<PlaceInsert>;
 // Extended types with relations
 export interface PlaceWithImages extends Place {
   images: PlaceImage[];
+}
+
+export interface AccommodationWithImages extends Accommodation {
+  images: AccommodationImage[];
 }
 
 // Itinerary types for application use
@@ -245,6 +264,19 @@ export interface Database {
         Insert: AccommodationInsert;
         Update: AccommodationUpdate;
         Relationships: [];
+      };
+      accommodation_images: {
+        Row: AccommodationImage;
+        Insert: AccommodationImageInsert;
+        Update: Partial<AccommodationImageInsert>;
+        Relationships: [
+          {
+            foreignKeyName: 'accommodation_images_accommodation_id_fkey';
+            columns: ['accommodation_id'];
+            referencedRelation: 'accommodations';
+            referencedColumns: ['id'];
+          }
+        ];
       };
     };
     Views: Record<string, never>;

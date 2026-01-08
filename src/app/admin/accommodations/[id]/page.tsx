@@ -33,6 +33,7 @@ import {
   AccommodationArea,
   AccommodationPurpose,
   AccommodationPriceRange,
+  AccommodationImage,
   ACCOMMODATION_AREAS,
   ACCOMMODATION_PURPOSES,
   ACCOMMODATION_PRICE_RANGES,
@@ -41,10 +42,11 @@ import { ImageUpload } from '@/components/admin/image-upload';
 import { PlaceSearchModal } from '@/components/google-places';
 import { PlaceDetails } from '@/lib/google-places/types';
 
-interface AccommodationImage {
+// UI용 이미지 인터페이스 (place_id 호환)
+interface UIImage {
   id: string;
   created_at: string;
-  place_id: string;
+  place_id: string;  // ImageUpload 컴포넌트와 호환을 위해 유지
   url: string;
   alt: string | null;
   sort_order: number;
@@ -112,7 +114,7 @@ export default function AccommodationEditPage() {
   const isNew = params.id === 'new';
 
   const [formData, setFormData] = useState<AccommodationFormData>(defaultFormData);
-  const [images, setImages] = useState<AccommodationImage[]>([]);
+  const [images, setImages] = useState<UIImage[]>([]);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [featureInput, setFeatureInput] = useState('');
@@ -147,7 +149,7 @@ export default function AccommodationEditPage() {
     if (place.photos && place.photos.length > 0 && images.length === 0) {
       setUploadingImages(true);
       const photosToDownload = place.photos.slice(0, 5);
-      const uploadedImages: AccommodationImage[] = [];
+      const uploadedImages: UIImage[] = [];
 
       for (let idx = 0; idx < photosToDownload.length; idx++) {
         const photo = photosToDownload[idx];
@@ -166,7 +168,7 @@ export default function AccommodationEditPage() {
             const data = await response.json();
             uploadedImages.push({
               id: `google-${idx}`,
-              place_id: '',
+              place_id: '',  // UI 호환용
               url: data.url,
               alt: place.name,
               sort_order: idx,
@@ -230,8 +232,42 @@ export default function AccommodationEditPage() {
           website: acc.website || '',
         });
 
-        // 이미지가 있다면 썸네일로 설정
-        if (acc.thumbnail) {
+        // accommodation_images 테이블에서 이미지 조회
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: imagesData, error: imagesError } = await (supabase as any)
+          .from('accommodation_images')
+          .select('*')
+          .eq('accommodation_id', params.id)
+          .order('sort_order');
+
+        if (imagesError) {
+          console.error('Failed to fetch accommodation images:', imagesError);
+          // 이미지 테이블이 없거나 에러 시 thumbnail 필드 사용
+          if (acc.thumbnail) {
+            setImages([{
+              id: 'thumbnail',
+              place_id: acc.id,
+              url: acc.thumbnail,
+              alt: acc.name_ko,
+              sort_order: 0,
+              is_thumbnail: true,
+              created_at: acc.created_at,
+            }]);
+          }
+        } else if (imagesData && imagesData.length > 0) {
+          // accommodation_images 테이블의 이미지를 UI 형식으로 변환
+          const uiImages: UIImage[] = imagesData.map((img: AccommodationImage) => ({
+            id: img.id,
+            place_id: img.accommodation_id,  // UI 호환용
+            url: img.url,
+            alt: img.alt,
+            sort_order: img.sort_order,
+            is_thumbnail: img.is_thumbnail,
+            created_at: img.created_at,
+          }));
+          setImages(uiImages);
+        } else if (acc.thumbnail) {
+          // 이미지 테이블은 있지만 데이터가 없고 thumbnail이 있는 경우
           setImages([{
             id: 'thumbnail',
             place_id: acc.id,
@@ -264,6 +300,14 @@ export default function AccommodationEditPage() {
     try {
       const thumbnail = images.find((img) => img.is_thumbnail)?.url || images[0]?.url || null;
 
+      // 이미지 데이터를 accommodation_images 형식으로 변환
+      const imageDataForSave = images.map((img, idx) => ({
+        url: img.url,
+        alt: img.alt || formData.name_ko,
+        sort_order: idx,
+        is_thumbnail: img.is_thumbnail || idx === 0,
+      }));
+
       const accommodationData = {
         slug: formData.slug || formData.name.toLowerCase().replace(/\s+/g, '-'),
         name: formData.name,
@@ -291,6 +335,7 @@ export default function AccommodationEditPage() {
         phone: formData.phone || null,
         website: formData.website || null,
         google_synced_at: formData.google_place_id ? new Date().toISOString() : null,
+        images: imageDataForSave,  // 이미지 데이터 포함
       };
 
       console.log('Saving accommodation:', accommodationData);

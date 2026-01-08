@@ -84,12 +84,15 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
+    // 이미지 데이터 분리
+    const { images, ...accommodationData } = body;
+
     const supabase = createAdminClient();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
       .from('accommodations')
-      .update(body)
+      .update(accommodationData)
       .eq('id', id)
       .select()
       .single();
@@ -100,6 +103,37 @@ export async function PUT(
         { error: error.message },
         { status: 400 }
       );
+    }
+
+    // 이미지 업데이트: 기존 이미지 삭제 후 새로 저장
+    if (images !== undefined) {
+      // 기존 이미지 삭제
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any)
+        .from('accommodation_images')
+        .delete()
+        .eq('accommodation_id', id);
+
+      // 새 이미지 저장
+      if (images && images.length > 0) {
+        const imageInserts = images.map((img: { url: string; alt: string | null; sort_order: number; is_thumbnail: boolean }) => ({
+          accommodation_id: id,
+          url: img.url,
+          alt: img.alt,
+          sort_order: img.sort_order,
+          is_thumbnail: img.is_thumbnail,
+        }));
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: imagesError } = await (supabase as any)
+          .from('accommodation_images')
+          .insert(imageInserts);
+
+        if (imagesError) {
+          console.error('Failed to save accommodation images:', imagesError);
+          // 이미지 저장 실패는 경고만 하고 진행 (테이블이 없을 수 있음)
+        }
+      }
     }
 
     return NextResponse.json({ data });

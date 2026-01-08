@@ -70,17 +70,20 @@ function AccommodationsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const areaFilter = searchParams.get('area') as AccommodationArea | null;
+  const statusFilter = searchParams.get('status') as 'all' | 'published' | 'unpublished' | null;
 
   const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [areaCounts, setAreaCounts] = useState<Record<string, number>>({});
+  const [statusCounts, setStatusCounts] = useState<{ published: number; unpublished: number }>({ published: 0, unpublished: 0 });
 
   useEffect(() => {
     fetchAccommodations();
     fetchAreaCounts();
-  }, [areaFilter]);
+    fetchStatusCounts();
+  }, [areaFilter, statusFilter]);
 
   async function fetchAccommodations() {
     try {
@@ -93,6 +96,12 @@ function AccommodationsContent() {
 
       if (areaFilter) {
         query = query.eq('area', areaFilter);
+      }
+
+      if (statusFilter === 'published') {
+        query = query.eq('is_published', true);
+      } else if (statusFilter === 'unpublished') {
+        query = query.eq('is_published', false);
       }
 
       const { data, error } = await query;
@@ -122,6 +131,30 @@ function AccommodationsContent() {
       setAreaCounts(counts);
     } catch (err) {
       console.error('Failed to fetch area counts:', err);
+    }
+  }
+
+  async function fetchStatusCounts() {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
+        .from('accommodations')
+        .select('is_published');
+
+      if (error) throw error;
+
+      let published = 0;
+      let unpublished = 0;
+      (data || []).forEach((acc: { is_published: boolean }) => {
+        if (acc.is_published) {
+          published++;
+        } else {
+          unpublished++;
+        }
+      });
+      setStatusCounts({ published, unpublished });
+    } catch (err) {
+      console.error('Failed to fetch status counts:', err);
     }
   }
 
@@ -239,10 +272,35 @@ function AccommodationsContent() {
               />
             </div>
             <Select
+              value={statusFilter || 'all'}
+              onValueChange={(value) => {
+                const params = new URLSearchParams(searchParams.toString());
+                if (value === 'all') {
+                  params.delete('status');
+                } else {
+                  params.set('status', value);
+                }
+                router.push(`/admin/accommodations?${params.toString()}`);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-36">
+                <SelectValue placeholder="상태 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체 ({statusCounts.published + statusCounts.unpublished})</SelectItem>
+                <SelectItem value="published">공개 ({statusCounts.published})</SelectItem>
+                <SelectItem value="unpublished">비공개 ({statusCounts.unpublished})</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
               value={areaFilter || 'all'}
               onValueChange={(value) => {
-                const params = new URLSearchParams();
-                if (value !== 'all') params.set('area', value);
+                const params = new URLSearchParams(searchParams.toString());
+                if (value === 'all') {
+                  params.delete('area');
+                } else {
+                  params.set('area', value);
+                }
                 router.push(`/admin/accommodations?${params.toString()}`);
               }}
             >
