@@ -300,21 +300,11 @@ export default function AccommodationEditPage() {
     // 한글 이름 자동 생성 (음역)
     const koreanName = transliterateToKorean(place.name);
 
-    // 목적 추론
-    const purposes = inferPurposes(priceRange, place.types);
-
-    // 편의시설 추출
-    const amenities = extractAmenities(place.types);
-
-    // 주소에서 설명 생성
-    const description = place.formatted_address || '';
-
     setFormData((prev) => ({
       ...prev,
       name: place.name,
       name_ko: prev.name_ko || koreanName,  // 한글명 자동 생성
       slug: slug,
-      description: prev.description || description,
       phone: place.formatted_phone_number || '',
       website: place.website || '',
       google_place_id: place.place_id,
@@ -325,10 +315,6 @@ export default function AccommodationEditPage() {
       area_name: detectedArea?.area_name || prev.area_name,
       // 가격대 자동 설정
       price_range: priceRange || prev.price_range,
-      // 목적 자동 설정
-      purposes: prev.purposes.length > 0 ? prev.purposes : purposes,
-      // 편의시설 자동 설정
-      amenities: prev.amenities.length > 0 ? prev.amenities : amenities,
       // 평점 및 리뷰 자동 설정
       rating: place.rating || prev.rating,
       review_count: place.user_ratings_total || prev.review_count,
