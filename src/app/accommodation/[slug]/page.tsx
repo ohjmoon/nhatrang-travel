@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,7 @@ export default function AccommodationDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const imageGalleryRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchAccommodation();
@@ -108,6 +109,11 @@ export default function AccommodationDetailPage() {
     setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
+  const selectImageAndScroll = (index: number) => {
+    setCurrentImageIndex(index);
+    imageGalleryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-ocean-50 via-white to-palm-50 flex items-center justify-center">
@@ -157,7 +163,7 @@ export default function AccommodationDetailPage() {
       </nav>
 
       {/* Hero Image Gallery */}
-      <div className="pt-16 relative">
+      <div ref={imageGalleryRef} className="pt-16 relative">
         <div className="relative h-[50vh] md:h-[60vh] overflow-hidden bg-ocean-100">
           {images.length > 0 ? (
             <>
@@ -393,7 +399,7 @@ export default function AccommodationDetailPage() {
                     {images.slice(0, 6).map((img, idx) => (
                       <button
                         key={img.id}
-                        onClick={() => setCurrentImageIndex(idx)}
+                        onClick={() => selectImageAndScroll(idx)}
                         className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
                           idx === currentImageIndex ? 'border-ocean-500' : 'border-transparent'
                         }`}
