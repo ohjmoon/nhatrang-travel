@@ -4,6 +4,40 @@ import { createAdminClient } from '@/lib/supabase/client';
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
+// GET: List all accommodations with coordinate status
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const withoutCoordinates = searchParams.get('without_coordinates') === 'true';
+
+  const supabase = createAdminClient();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query = (supabase as any)
+    .from('accommodations')
+    .select('id, name, name_ko, area, google_place_id, latitude, longitude, is_published')
+    .order('sort_order');
+
+  if (withoutCoordinates) {
+    query = query.or('latitude.is.null,longitude.is.null');
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    accommodations: data,
+    summary: {
+      total: data.length,
+      withCoordinates: data.filter((a: { latitude: number | null; longitude: number | null }) => a.latitude && a.longitude).length,
+      withoutCoordinates: data.filter((a: { latitude: number | null; longitude: number | null }) => !a.latitude || !a.longitude).length,
+      withGooglePlaceId: data.filter((a: { google_place_id: string | null }) => a.google_place_id).length,
+    }
+  });
+}
+
 // POST - Create new accommodation
 export async function POST(request: NextRequest) {
   try {
