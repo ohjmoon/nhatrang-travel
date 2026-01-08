@@ -122,23 +122,77 @@ export default function AccommodationEditPage() {
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
 
+  // 좌표 기반 지역 자동 감지
+  function detectAreaFromCoordinates(lat: number, lng: number): { area: AccommodationArea; area_name: string } | null {
+    // 깜란 (Cam Ranh): 12.0-12.1, 109.2
+    if (lat >= 11.95 && lat <= 12.15 && lng >= 109.15 && lng <= 109.25) {
+      return { area: 'camranh', area_name: '깜란' };
+    }
+    // 닌반베이 (Ninh Van Bay): 12.34-12.38
+    if (lat >= 12.32 && lat <= 12.40 && lng >= 109.24 && lng <= 109.30) {
+      return { area: 'ninhvan', area_name: '닌반베이' };
+    }
+    // 혼총 (Hon Chong): 12.26-12.30
+    if (lat >= 12.26 && lat <= 12.30 && lng >= 109.20 && lng <= 109.23) {
+      return { area: 'honchong', area_name: '혼총' };
+    }
+    // 빈펄 (Vinpearl): 12.18-12.22, 109.22-109.24
+    if (lat >= 12.15 && lat <= 12.22 && lng >= 109.22 && lng <= 109.25) {
+      return { area: 'vinpearl', area_name: '빈펄' };
+    }
+    // 시내 (City): 12.22-12.26
+    if (lat >= 12.22 && lat <= 12.27 && lng >= 109.18 && lng <= 109.21) {
+      return { area: 'city', area_name: '시내' };
+    }
+    return null;
+  }
+
+  // Google price_level을 가격대로 변환 (0-4)
+  function convertPriceLevel(priceLevel: number | undefined): AccommodationPriceRange | '' {
+    if (priceLevel === undefined || priceLevel === null) return '';
+    if (priceLevel <= 1) return '$';      // Free, Inexpensive
+    if (priceLevel === 2) return '$$';    // Moderate
+    if (priceLevel === 3) return '$$$';   // Expensive
+    return '$$$$';                         // Very Expensive
+  }
+
   // Google Places 검색 결과 선택 시 자동 입력
   async function handleGooglePlaceSelect(place: PlaceDetails) {
-    // 영업시간 포맷팅
-    let hoursText = '';
-    if (place.opening_hours?.weekday_text) {
-      hoursText = place.opening_hours.weekday_text[0] || '';
-    }
+    const lat = place.geometry?.location?.lat;
+    const lng = place.geometry?.location?.lng;
+
+    // 지역 자동 감지
+    const detectedArea = lat && lng ? detectAreaFromCoordinates(lat, lng) : null;
+
+    // 가격대 변환
+    const priceRange = convertPriceLevel(place.price_level);
+
+    // 영문 이름에서 슬러그 생성 (한글 제거)
+    const englishName = place.name.replace(/[가-힣]/g, '').trim() || place.name;
+    const slug = generateSlug(englishName);
+
+    // 주소에서 설명 생성
+    const description = place.formatted_address || '';
 
     setFormData((prev) => ({
       ...prev,
       name: place.name,
-      slug: generateSlug(place.name),
+      name_ko: prev.name_ko || '',  // 한글명은 직접 입력 필요
+      slug: slug,
+      description: prev.description || description,
       phone: place.formatted_phone_number || '',
       website: place.website || '',
       google_place_id: place.place_id,
-      latitude: place.geometry?.location?.lat || null,
-      longitude: place.geometry?.location?.lng || null,
+      latitude: lat || null,
+      longitude: lng || null,
+      // 지역 자동 설정
+      area: detectedArea?.area || prev.area,
+      area_name: detectedArea?.area_name || prev.area_name,
+      // 가격대 자동 설정
+      price_range: priceRange || prev.price_range,
+      // 평점 및 리뷰 자동 설정
+      rating: place.rating || prev.rating,
+      review_count: place.user_ratings_total || prev.review_count,
       google_rating: place.rating || null,
       google_reviews_count: place.user_ratings_total || null,
     }));
