@@ -11,7 +11,8 @@ export async function GET(request: NextRequest) {
 
   const supabase = createAdminClient();
 
-  let query = supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query = (supabase as any)
     .from('places')
     .select('id, type, category, name, name_ko, google_place_id, coordinates, is_published')
     .order('type')
@@ -35,9 +36,9 @@ export async function GET(request: NextRequest) {
     places: data,
     summary: {
       total: data.length,
-      withCoordinates: data.filter(p => p.coordinates).length,
-      withoutCoordinates: data.filter(p => !p.coordinates).length,
-      withGooglePlaceId: data.filter(p => p.google_place_id).length,
+      withCoordinates: data.filter((p: { coordinates: unknown }) => p.coordinates).length,
+      withoutCoordinates: data.filter((p: { coordinates: unknown }) => !p.coordinates).length,
+      withGooglePlaceId: data.filter((p: { google_place_id: string | null }) => p.google_place_id).length,
     }
   });
 }
@@ -58,7 +59,8 @@ export async function POST(request: NextRequest) {
     const supabase = createAdminClient();
 
     // Get places to sync
-    let query = supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query = (supabase as any)
       .from('places')
       .select('id, name, google_place_id, coordinates');
 
@@ -123,7 +125,8 @@ export async function POST(request: NextRequest) {
         const { lat, lng } = data.result.geometry.location;
 
         // Update place with coordinates
-        const { error: updateError } = await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: updateError } = await (supabase as any)
           .from('places')
           .update({
             coordinates: { lat, lng },

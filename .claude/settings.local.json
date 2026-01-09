@@ -44,7 +44,12 @@
       "mcp__puppeteer__puppeteer_fill",
       "Bash(cd:*)",
       "Bash(timeout /t 60 /nobreak)",
-      "Bash(claude doctor:*)"
+      "Bash(claude doctor:*)",
+      "Bash(for i in 1 2 3 4 5 6 7 8 9 10 11 12)",
+      "Bash(do echo \"Batch $i:\")",
+      "Bash(done)",
+      "Bash(powershell -Command \"$input | ConvertFrom-Json | Select-Object -ExpandProperty summary | ConvertTo-Json\")",
+      "Bash(dir \"D:\\\\workspaces\\\\nhatrang-travel\\\\*.md\" /b)"
     ]
   }
 }

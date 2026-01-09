@@ -19,7 +19,8 @@ export async function POST(request: NextRequest) {
     const supabase = createAdminClient();
 
     // Get places to search
-    let query = supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query = (supabase as any)
       .from('places')
       .select('id, name, name_ko, type, address')
       .is('coordinates', null)
@@ -78,7 +79,8 @@ export async function POST(request: NextRequest) {
         const googlePlaceId = firstResult.place_id;
 
         // Update place with coordinates and google_place_id
-        const { error: updateError } = await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: updateError } = await (supabase as any)
           .from('places')
           .update({
             coordinates: { lat, lng },
@@ -121,7 +123,8 @@ export async function POST(request: NextRequest) {
     const failed = results.filter(r => !r.success).length;
 
     // Get remaining count
-    const { count: remaining } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { count: remaining } = await (supabase as any)
       .from('places')
       .select('*', { count: 'exact', head: true })
       .is('coordinates', null)
